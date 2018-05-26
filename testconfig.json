@@ -1,0 +1,7 @@
+{
+  "server": "localhost:6667",
+  "nick": "Testinator",
+  "alternatives": ["Testinator2", "Testinator3"],
+  "ssl": false,
+  "verifySsl": false
+}
