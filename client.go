@@ -85,6 +85,14 @@ func (client *Client) Context() context.Context {
 	return client.ctx
 }
 
+// ID gets the unique identifier for the client, which could be used in data structures
+func (client *Client) ID() string {
+	client.mutex.RLock()
+	defer client.mutex.RUnlock()
+
+	return client.id
+}
+
 // Nick gets the nick of the client
 func (client *Client) Nick() string {
 	client.mutex.RLock()

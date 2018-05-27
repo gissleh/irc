@@ -8,13 +8,18 @@ import (
 	"git.aiterp.net/gisle/irc/internal/irctest"
 )
 
-func TestClientInteraction(t *testing.T) {
+func TestClient(t *testing.T) {
 	client := irc.New(context.Background(), irc.Config{
 		Nick:         "Test",
 		User:         "Tester",
 		RealName:     "...",
 		Alternatives: []string{"Test2", "Test3", "Test4"},
 	})
+
+	t.Logf("Client.ID = %#+v", client.ID())
+	if client.ID() == "" {
+		t.Fail()
+	}
 
 	interaction := irctest.Interaction{
 		Strict: false,
