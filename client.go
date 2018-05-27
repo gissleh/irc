@@ -28,7 +28,8 @@ var supportedCaps = []string{
 	"userhost-in-names",
 }
 
-// ErrNoConnection is returned if
+// ErrNoConnection is returned if you try to do something requiring a connection,
+// but there is none.
 var ErrNoConnection = errors.New("irc: no connection")
 
 // A Client is an IRC client. You need to use New to construct it
