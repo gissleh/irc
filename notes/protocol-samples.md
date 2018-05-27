@@ -80,4 +80,4 @@ JOIN #Test
 :archgisle.lan 366 Testify #Test :End of /NAMES list.
 :Gisle!~irce@10.32.0.1 MODE #Test +osv Testify Testify
 :Gisle!~irce@10.32.0.1 MODE #Test +N-s 
-```⏎                              
+```

@@ -10,7 +10,8 @@ var unescapeTags = strings.NewReplacer("\\\\", "\\", "\\:", ";", "\\s", " ", "\\
 
 // ParsePacket parses and irc line and returns an event that's either of kind `packet`, `ctcp` or `ctcpreply`
 func ParsePacket(line string) (Event, error) {
-	event := Event{Time: time.Now()}
+	event := NewEvent("packet", "")
+	event.Time = time.Now()
 
 	if len(line) == 0 {
 		return event, errors.New("irc: empty line")
@@ -47,7 +48,7 @@ func ParsePacket(line string) (Event, error) {
 		prefixTokens := strings.Split(split[0][1:], "!")
 
 		event.Nick = prefixTokens[0]
-		if len(split) > 1 {
+		if len(prefixTokens) > 1 {
 			userhost := strings.Split(prefixTokens[1], "@")
 
 			if len(userhost) < 2 {
@@ -90,5 +91,6 @@ func ParsePacket(line string) (Event, error) {
 		}
 	}
 
+	event.name = event.kind + "." + strings.ToLower(event.verb)
 	return event, nil
 }

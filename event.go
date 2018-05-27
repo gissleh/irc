@@ -52,7 +52,7 @@ func (event *Event) Verb() string {
 
 // Name gets the event name, which is Kind and Verb separated by a dot.
 func (event *Event) Name() string {
-	return event.kind + "." + event.verb
+	return event.name
 }
 
 // IsEither returns true if the event has the kind and one of the verbs.

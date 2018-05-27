@@ -85,6 +85,30 @@ func (client *Client) Context() context.Context {
 	return client.ctx
 }
 
+// Nick gets the nick of the client
+func (client *Client) Nick() string {
+	client.mutex.RLock()
+	defer client.mutex.RUnlock()
+
+	return client.nick
+}
+
+// User gets the user/ident of the client
+func (client *Client) User() string {
+	client.mutex.RLock()
+	defer client.mutex.RUnlock()
+
+	return client.user
+}
+
+// Host gets the hostname of the client
+func (client *Client) Host() string {
+	client.mutex.RLock()
+	defer client.mutex.RUnlock()
+
+	return client.host
+}
+
 // ISupport gets the client's ISupport. This is mutable, and changes to it
 // *will* affect the client.
 func (client *Client) ISupport() *isupport.ISupport {
@@ -133,6 +157,13 @@ func (client *Client) Connect(addr string, ssl bool) (err error) {
 				break
 			}
 			line = replacer.Replace(line)
+
+			event, err := ParsePacket(line)
+			if err != nil {
+				continue
+			}
+
+			client.Emit(event)
 		}
 
 		client.mutex.Lock()
@@ -408,7 +439,7 @@ func (client *Client) handleEvent(event *Event) {
 		}
 	}
 
-	switch event.Name() {
+	switch event.name {
 
 	// Ping Pong
 	case "hook.tick":
@@ -457,10 +488,10 @@ func (client *Client) handleEvent(event *Event) {
 	case "packet.001":
 		{
 			client.mutex.Lock()
-			client.nick = event.Args[1]
+			client.nick = event.Args[0]
 			client.mutex.Unlock()
 
-			client.Sendf("WHO %s", event.Args[1])
+			client.Sendf("WHO %s", event.Args[0])
 		}
 
 	case "packet.443":
@@ -474,17 +505,21 @@ func (client *Client) handleEvent(event *Event) {
 
 				// "AltN" -> "AltN+1", ...
 				prev := client.config.Nick
+				sent := false
 				for _, alt := range client.config.Alternatives {
 					if nick == prev {
-						client.Sendf("NICK %s", nick)
-						return
+						client.Sendf("NICK %s", alt)
+						sent = true
+						break
 					}
 
 					prev = alt
 				}
 
-				// "LastAlt" -> "Nick23962"
-				client.Sendf("%s%05d", client.config.Nick, mathRand.Int31n(99999))
+				if !sent {
+					// "LastAlt" -> "Nick23962"
+					client.Sendf("NICK %s%05d", client.config.Nick, mathRand.Int31n(99999))
+				}
 			}
 		}
 
@@ -533,7 +568,7 @@ func (client *Client) handleEvent(event *Event) {
 						}
 					}
 
-					if len(event.Args) < 2 || event.Args[2] != "*" {
+					if len(event.Args) < 3 || event.Args[2] != "*" {
 						client.mutex.RLock()
 						requestedCount := len(client.capsRequested)
 						client.mutex.RUnlock()
@@ -618,22 +653,22 @@ func (client *Client) handleEvent(event *Event) {
 			user := event.Args[2]
 			host := event.Args[3]
 
-			client.mutex.Lock()
 			if nick == client.nick {
+				client.mutex.Lock()
 				client.user = user
 				client.host = host
+				client.mutex.Unlock()
 			}
-			client.mutex.Unlock()
 		}
 
 	case "packet.chghost":
 		{
-			client.mutex.Lock()
 			if event.Nick == client.nick {
+				client.mutex.Lock()
 				client.user = event.Args[1]
 				client.host = event.Args[2]
+				client.mutex.Unlock()
 			}
-			client.mutex.Unlock()
 		}
 	}
 }
