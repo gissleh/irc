@@ -222,7 +222,7 @@ func (client *Client) Send(line string) error {
 
 	_, err := conn.Write([]byte(line))
 	if err != nil {
-		client.EmitSafe(NewErrorEvent("network", err.Error()))
+		client.EmitNonBlocking(NewErrorEvent("network", err.Error()))
 		client.Disconnect()
 	}
 
@@ -265,10 +265,10 @@ func (client *Client) Emit(event Event) context.Context {
 	return event.ctx
 }
 
-// EmitSafe is just like emit, but it will spin off a goroutine if the channel is full.
-// This lets it be called from other handlers without risking a deadlock. See Emit for
-// what the returned context is for.
-func (client *Client) EmitSafe(event Event) context.Context {
+// EmitNonBlocking is just like emit, but it will spin off a goroutine if the channel is full.
+// This lets it be called from other handlers without ever blocking. See Emit for what the
+// returned context is for.
+func (client *Client) EmitNonBlocking(event Event) context.Context {
 	event.ctx, event.cancel = context.WithCancel(client.ctx)
 
 	select {
