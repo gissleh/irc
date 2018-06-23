@@ -1,3 +1,7 @@
+workspace:
+  base: /go
+  path: src/git.aiterp.net/gisle/irc
+
 pipeline:
   test:
     image: golang:${GO_VERSION}
