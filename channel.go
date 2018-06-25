@@ -49,6 +49,10 @@ func (channel *Channel) Handle(event *Event, client *Client) {
 		{
 			channel.userlist.Remove(event.Nick)
 		}
+	case "packet.nick":
+		{
+			channel.userlist.Rename(event.Nick, event.Arg(0))
+		}
 	case "packet.account":
 		{
 			newAccount := event.Arg(0)
@@ -57,6 +61,14 @@ func (channel *Channel) Handle(event *Event, client *Client) {
 				channel.userlist.Patch(event.Nick, list.UserPatch{Account: newAccount})
 			} else {
 				channel.userlist.Patch(event.Nick, list.UserPatch{ClearAccount: true})
+			}
+		}
+	case "packet.away":
+		{
+			if event.Text != "" {
+				channel.userlist.Patch(event.Nick, list.UserPatch{Away: event.Text})
+			} else {
+				channel.userlist.Patch(event.Nick, list.UserPatch{ClearAway: true})
 			}
 		}
 	case "packet.chghost":

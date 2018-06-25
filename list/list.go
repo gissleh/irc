@@ -253,6 +253,10 @@ func (list *List) Patch(nick string, patch UserPatch) (ok bool) {
 				user.Account = patch.Account
 			}
 
+			if patch.Away != "" || patch.ClearAway {
+				user.Away = patch.Away
+			}
+
 			if patch.User != "" {
 				user.User = patch.User
 			}

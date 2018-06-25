@@ -71,7 +71,7 @@ func TestClient(t *testing.T) {
 			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 MODE #Test +N-s "},
 			{Kind: 'S', Data: ":Test1234!~test2@172.17.37.1 JOIN #Test Test1234"},
 			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 MODE #Test +v Test1234"},
-			{Kind: 'S', Data: "PING :archgisle.lan"},
+			{Kind: 'S', Data: "PING :archgisle.lan"}, // Ping/Pong to sync.
 			{Kind: 'C', Data: "PONG :archgisle.lan"},
 			{Callback: func() error {
 				channel := client.Channel("#Test")
@@ -90,6 +90,44 @@ func TestClient(t *testing.T) {
 				}
 				if userTest1234.Account != "Test1234" {
 					return errors.New("Test1234 did not get account from extended-join")
+				}
+
+				return nil
+			}},
+			{Kind: 'S', Data: ":Test1234!~test2@172.17.37.1 NICK Hunter2"},
+			{Kind: 'S', Data: ":Hunter2!~test2@172.17.37.1 AWAY :Doing stuff"},
+			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 AWAY"},
+			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 PART #Test :Leaving the channel"},
+			{Kind: 'S', Data: "PING :archgisle.lan"}, // Ping/Pong to sync.
+			{Kind: 'C', Data: "PONG :archgisle.lan"},
+			{Callback: func() error {
+				channel := client.Channel("#Test")
+				if channel == nil {
+					return errors.New("Channel #Test not found")
+				}
+
+				err := irctest.AssertUserlist(t, channel, "@Test768", "+Hunter2")
+				if err != nil {
+					return err
+				}
+
+				_, ok := channel.UserList().User("Test1234")
+				if ok {
+					return errors.New("Test1234 is still there")
+				}
+
+				userHunter2, ok := channel.UserList().User("Hunter2")
+				if !ok {
+					return errors.New("Test1234 not found")
+				}
+				if userHunter2.Account != "Test1234" {
+					return errors.New("Hunter2 did not persist account post nick change")
+				}
+				if !userHunter2.IsAway() {
+					return errors.New("Hunter2 should be away")
+				}
+				if userHunter2.Away != "Doing stuff" {
+					return errors.New("Hunter2 has the wrong away message: " + userHunter2.Away)
 				}
 
 				return nil

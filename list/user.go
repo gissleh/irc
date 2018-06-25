@@ -6,6 +6,7 @@ type User struct {
 	User         string `json:"user,omitempty"`
 	Host         string `json:"host,omitempty"`
 	Account      string `json:"account,omitempty"`
+	Away         string `json:"away,omitempty"`
 	Modes        string `json:"modes"`
 	Prefixes     string `json:"prefixes"`
 	PrefixedNick string `json:"prefixedNick"`
@@ -17,6 +18,8 @@ type UserPatch struct {
 	Host         string
 	Account      string
 	ClearAccount bool
+	Away         string
+	ClearAway    bool
 }
 
 // HighestMode returns the highest mode.
@@ -26,6 +29,11 @@ func (user *User) HighestMode() rune {
 	}
 
 	return rune(user.Modes[0])
+}
+
+// IsAway returns true if user.Away is non-empty
+func (user *User) IsAway() bool {
+	return user.Away != ""
 }
 
 // PrefixedNick gets the full nick.

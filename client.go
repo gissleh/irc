@@ -27,6 +27,7 @@ var supportedCaps = []string{
 	"multi-prefix",
 	"userhost-in-names",
 	"account-notify",
+	"away-notify",
 	"extended-join",
 	"chghost",
 }
@@ -630,7 +631,7 @@ func (client *Client) handleEvent(event *Event) {
 			}
 		}
 
-	case "packer.nick":
+	case "packet.nick":
 		{
 			client.handleInTargets(event.Nick, event)
 
@@ -858,8 +859,14 @@ func (client *Client) handleEvent(event *Event) {
 			}
 		}
 
-	// Account handling
+	// account-notify
 	case "packet.account":
+		{
+			client.handleInTargets(event.Nick, event)
+		}
+
+	// away-notify
+	case "packet.away":
 		{
 			client.handleInTargets(event.Nick, event)
 		}
