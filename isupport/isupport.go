@@ -218,6 +218,30 @@ func (isupport *ISupport) IsPermissionMode(flag rune) bool {
 	return strings.ContainsRune(isupport.modeOrder, flag)
 }
 
+// ModeTakesArgument returns true if the mode takes an argument
+func (isupport *ISupport) ModeTakesArgument(flag rune, plus bool) bool {
+	isupport.lock.RLock()
+	defer isupport.lock.RUnlock()
+
+	// Permission modes always take an argument.
+	if strings.ContainsRune(isupport.modeOrder, flag) {
+		return true
+	}
+
+	// Modes in category A and B always takes an argument
+	if strings.ContainsRune(isupport.chanModes[0], flag) || strings.ContainsRune(isupport.chanModes[1], flag) {
+		return true
+	}
+
+	// Modes in category C only takes one when added
+	if plus && strings.ContainsRune(isupport.chanModes[1], flag) {
+		return true
+	}
+
+	// Modes in category D and outside never does
+	return false
+}
+
 // ChannelModeType returns a number from 0 to 3 based on what block of mode
 // in the CHANMODES variable it fits into. If it's not found at all, it will
 // return -1

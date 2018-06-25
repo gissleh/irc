@@ -1,11 +1,15 @@
 package irc
 
-import "git.aiterp.net/gisle/irc/list"
+import (
+	"strings"
+
+	"git.aiterp.net/gisle/irc/list"
+)
 
 // A Channel is a target that manages the userlist
 type Channel struct {
 	name     string
-	userlist list.List
+	userlist *list.List
 }
 
 // Kind returns "channel"
@@ -61,6 +65,51 @@ func (channel *Channel) Handle(event *Event, client *Client) {
 			newHost := event.Arg(1)
 
 			channel.userlist.Patch(event.Nick, list.UserPatch{User: newUser, Host: newHost})
+		}
+	case "packet.353": // NAMES
+		{
+			channel.userlist.SetAutoSort(false)
+			tokens := strings.Split(event.Text, " ")
+			for _, token := range tokens {
+				channel.userlist.InsertFromNamesToken(token)
+			}
+		}
+	case "packet.366": // End of NAMES
+		{
+			channel.userlist.SetAutoSort(true)
+		}
+	case "packet.mode":
+		{
+			isupport := client.ISupport()
+			plus := false
+			argIndex := 2
+
+			for _, ch := range event.Arg(1) {
+				if ch == '+' {
+					plus = true
+					continue
+				}
+				if ch == '-' {
+					plus = false
+					continue
+				}
+
+				arg := ""
+				if isupport.ModeTakesArgument(ch, plus) {
+					arg = event.Arg(argIndex)
+					argIndex++
+				}
+
+				if isupport.IsPermissionMode(ch) {
+					if plus {
+						channel.userlist.AddMode(arg, ch)
+					} else {
+						channel.userlist.RemoveMode(arg, ch)
+					}
+				} else {
+					// TODO: track non-permission modes
+				}
+			}
 		}
 	}
 }

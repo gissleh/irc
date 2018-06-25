@@ -18,6 +18,7 @@ import (
 
 	"git.aiterp.net/gisle/irc/ircutil"
 	"git.aiterp.net/gisle/irc/isupport"
+	"git.aiterp.net/gisle/irc/list"
 )
 
 var supportedCaps = []string{
@@ -789,13 +790,13 @@ func (client *Client) handleEvent(event *Event) {
 			client.handleInTargets(event.Nick, event)
 		}
 
-	// Join/part handling
+	// Channel join/leave/mode handling
 	case "packet.join":
 		{
 			var channel *Channel
 
 			if event.Nick == client.nick {
-				channel = &Channel{name: event.Arg(0)}
+				channel = &Channel{name: event.Arg(0), userlist: list.New(&client.isupport)}
 				client.AddTarget(channel)
 			} else {
 				channel = client.Channel(event.Arg(0))
@@ -829,11 +830,43 @@ func (client *Client) handleEvent(event *Event) {
 			client.handleInTargets(event.Nick, event)
 		}
 
+	case "packet.353": // NAMES
+		{
+			channel := client.Channel(event.Arg(2))
+			if channel != nil {
+				channel.Handle(event, client)
+			}
+		}
+
+	case "packet.366": // End of NAMES
+		{
+			channel := client.Channel(event.Arg(1))
+			if channel != nil {
+				channel.Handle(event, client)
+			}
+		}
+
+	case "packet.mode":
+		{
+			targetName := event.Arg(0)
+
+			if client.isupport.IsChannel(targetName) {
+				channel := client.Channel(targetName)
+				if channel != nil {
+					channel.Handle(event, client)
+				}
+			}
+		}
+
 	// Account handling
 	case "packet.account":
 		{
 			client.handleInTargets(event.Nick, event)
 		}
+	}
+
+	if len(event.targets) == 0 {
+		event.targets = append(event.targets, client.status)
 	}
 }
 
@@ -857,16 +890,19 @@ func (client *Client) handleInTargets(nick string, event *Event) {
 			{
 				if target.user.Nick == nick {
 					target.Handle(event, client)
+					event.targets = append(event.targets, target)
 				}
 			}
 		case *Status:
 			{
 				if client.nick == event.Nick {
 					target.Handle(event, client)
+					event.targets = append(event.targets, target)
 				}
 			}
 		}
 	}
+
 	client.mutex.RUnlock()
 }
 

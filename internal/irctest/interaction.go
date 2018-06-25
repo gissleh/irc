@@ -49,52 +49,64 @@ func (interaction *Interaction) Listen() (addr string, err error) {
 		for i := 0; i < len(lines); i++ {
 			line := lines[i]
 
-			switch line.Kind {
-			case 'S':
-				{
-					_, err := conn.Write(append([]byte(line.Data), '\r', '\n'))
-					if err != nil {
-						interaction.Failure = &InteractionFailure{
-							Index: i, NetErr: err,
+			if line.Data != "" {
+				switch line.Kind {
+				case 'S':
+					{
+						_, err := conn.Write(append([]byte(line.Data), '\r', '\n'))
+						if err != nil {
+							interaction.Failure = &InteractionFailure{
+								Index: i, NetErr: err,
+							}
+							return
 						}
-						return
+					}
+				case 'C':
+					{
+						conn.SetReadDeadline(time.Now().Add(time.Second))
+						input, err := reader.ReadString('\n')
+						if err != nil {
+							interaction.Failure = &InteractionFailure{
+								Index: i, NetErr: err,
+							}
+							return
+						}
+						input = strings.Replace(input, "\r", "", -1)
+						input = strings.Replace(input, "\n", "", 1)
+
+						match := line.Data
+						success := false
+
+						if strings.HasSuffix(match, "*") {
+							success = strings.HasPrefix(input, match[:len(match)-1])
+						} else {
+							success = match == input
+						}
+
+						interaction.Log = append(interaction.Log, input)
+
+						if !success {
+							if !interaction.Strict {
+								i--
+								continue
+							}
+
+							interaction.Failure = &InteractionFailure{
+								Index: i, Result: input,
+							}
+							return
+						}
 					}
 				}
-			case 'C':
-				{
-					conn.SetReadDeadline(time.Now().Add(time.Second))
-					input, err := reader.ReadString('\n')
-					if err != nil {
-						interaction.Failure = &InteractionFailure{
-							Index: i, NetErr: err,
-						}
-						return
+			}
+
+			if line.Callback != nil {
+				err := line.Callback()
+				if err != nil {
+					interaction.Failure = &InteractionFailure{
+						Index: i, CBErr: err,
 					}
-					input = strings.Replace(input, "\r", "", -1)
-					input = strings.Replace(input, "\n", "", 1)
-
-					match := line.Data
-					success := false
-
-					if strings.HasSuffix(match, "*") {
-						success = strings.HasPrefix(input, match[:len(match)-1])
-					} else {
-						success = match == input
-					}
-
-					interaction.Log = append(interaction.Log, input)
-
-					if !success {
-						if !interaction.Strict {
-							i--
-							continue
-						}
-
-						interaction.Failure = &InteractionFailure{
-							Index: i, Result: input,
-						}
-						return
-					}
+					return
 				}
 			}
 		}
@@ -114,11 +126,13 @@ type InteractionFailure struct {
 	Index  int
 	Result string
 	NetErr error
+	CBErr  error
 }
 
 // InteractionLine is part of an interaction, whether it is a line
 // that is sent to a client or a line expected from a client.
 type InteractionLine struct {
-	Kind byte
-	Data string
+	Kind     byte
+	Data     string
+	Callback func() error
 }

@@ -2,6 +2,7 @@ package irc_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"git.aiterp.net/gisle/irc"
@@ -13,7 +14,7 @@ func TestClient(t *testing.T) {
 		Nick:         "Test",
 		User:         "Tester",
 		RealName:     "...",
-		Alternatives: []string{"Test2", "Test3", "Test4"},
+		Alternatives: []string{"Test2", "Test3", "Test4", "Test768"},
 	})
 
 	t.Logf("Client.ID = %#+v", client.ID())
@@ -38,7 +39,7 @@ func TestClient(t *testing.T) {
 			{Kind: 'S', Data: ":testserver.example.com 443 * Test3 :Nick is not available"},
 			{Kind: 'C', Data: "NICK Test4"},
 			{Kind: 'S', Data: ":testserver.example.com 443 * Test4 :Nick is not available"},
-			{Kind: 'C', Data: "NICK Test*"},
+			{Kind: 'C', Data: "NICK Test768"},
 			{Kind: 'S', Data: ":testserver.example.com 001 Test768 :Welcome to the TestServer Internet Relay Chat Network test"},
 			{Kind: 'C', Data: "WHO Test768*"},
 			{Kind: 'S', Data: ":testserver.example.com 002 Test768 :Your host is testserver.example.com[testserver.example.com/6667], running version charybdis-4-rc3"},
@@ -61,8 +62,38 @@ func TestClient(t *testing.T) {
 			{Kind: 'S', Data: ":testserver.example.com 372 Test768 :-  - #Test  :: Test Channel"},
 			{Kind: 'S', Data: ":testserver.example.com 372 Test768 :-  - #Test2 :: Other Test Channel"},
 			{Kind: 'S', Data: ":testserver.example.com 376 Test768 :End of /MOTD command."},
-			{Kind: 'S', Data: ":test MODE Test768 :+i"},
+			{Kind: 'S', Data: ":Test768 MODE Test768 :+i"},
 			{Kind: 'C', Data: "JOIN #Test"},
+			{Kind: 'S', Data: ":Test768!~test@127.0.0.1 JOIN #Test *"},
+			{Kind: 'S', Data: ":testserver.example.com 353 Test768 = #Test :Test768!~test@127.0.0.1 @+Gisle!gisle@gisle.me"},
+			{Kind: 'S', Data: ":testserver.example.com 366 Test768 #Test :End of /NAMES list."},
+			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 MODE #Test +osv Test768 Test768"},
+			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 MODE #Test +N-s "},
+			{Kind: 'S', Data: ":Test1234!~test2@172.17.37.1 JOIN #Test Test1234"},
+			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 MODE #Test +v Test1234"},
+			{Kind: 'S', Data: "PING :archgisle.lan"},
+			{Kind: 'C', Data: "PONG :archgisle.lan"},
+			{Callback: func() error {
+				channel := client.Channel("#Test")
+				if channel == nil {
+					return errors.New("Channel #Test not found")
+				}
+
+				err := irctest.AssertUserlist(t, channel, "@Gisle", "@Test768", "+Test1234")
+				if err != nil {
+					return err
+				}
+
+				userTest1234, ok := channel.UserList().User("Test1234")
+				if !ok {
+					return errors.New("Test1234 not found")
+				}
+				if userTest1234.Account != "Test1234" {
+					return errors.New("Test1234 did not get account from extended-join")
+				}
+
+				return nil
+			}},
 		},
 	}
 
@@ -89,6 +120,7 @@ func TestClient(t *testing.T) {
 	if fail != nil {
 		t.Error("Index:", fail.Index)
 		t.Error("NetErr:", fail.NetErr)
+		t.Error("CBErr:", fail.CBErr)
 		t.Error("Result:", fail.Result)
 		if fail.Index >= 0 {
 			t.Error("Line.Kind:", interaction.Lines[fail.Index].Kind)
