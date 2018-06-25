@@ -30,6 +30,7 @@ var supportedCaps = []string{
 	"away-notify",
 	"extended-join",
 	"chghost",
+	"account-tag",
 }
 
 // ErrNoConnection is returned if you try to do something requiring a connection,
@@ -856,6 +857,66 @@ func (client *Client) handleEvent(event *Event) {
 				if channel != nil {
 					channel.Handle(event, client)
 				}
+			}
+		}
+
+	// Message parsing
+	case "packet.privmsg", "ctcp.action":
+		{
+			// Target the mssage
+			target := Target(client.status)
+			spawned := false
+			targetName := event.Arg(0)
+			if targetName == client.nick {
+				target := client.Target("query", targetName)
+				if target == nil {
+					query := &Query{user: list.User{
+						Nick: event.Nick,
+						User: event.User,
+						Host: event.Host,
+					}}
+
+					client.AddTarget(query)
+
+					spawned = true
+
+					target = query
+				}
+			} else {
+				target = client.Channel(targetName)
+				if target == nil {
+					target = client.status
+				}
+			}
+
+			target.Handle(event, client)
+			event.targets = append(event.targets, target)
+
+			if spawned {
+				// TODO: Message has higher importance // 0:Normal, 1:Important, 2:Highlight
+			}
+		}
+
+	case "packet.notice":
+		{
+			// Try to target by mentioned channel name
+			for _, token := range strings.Fields(event.Text) {
+				if client.isupport.IsChannel(token) {
+					channel := client.Channel(token)
+					if channel == nil {
+						continue
+					}
+
+					channel.Handle(event, client)
+					event.targets = append(event.targets, channel)
+					break
+				}
+			}
+
+			// Otherwise, it belongs in the status target
+			if len(event.targets) == 0 {
+				client.status.Handle(event, client)
+				event.targets = append(event.targets, client.status)
 			}
 		}
 

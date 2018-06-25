@@ -123,5 +123,11 @@ func (channel *Channel) Handle(event *Event, client *Client) {
 				}
 			}
 		}
+	case "packet.privmsg", "ctcp.action":
+		{
+			if accountTag, ok := event.Tags["account"]; ok && accountTag != "" {
+				channel.userlist.Patch(event.Nick, list.UserPatch{Account: accountTag})
+			}
+		}
 	}
 }
