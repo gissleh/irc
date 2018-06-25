@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"git.aiterp.net/gisle/irc/ircutil"
-
 	"git.aiterp.net/gisle/irc/isupport"
 )
 
@@ -26,11 +25,30 @@ var supportedCaps = []string{
 	"cap-notify",
 	"multi-prefix",
 	"userhost-in-names",
+	"account-notify",
+	"extended-join",
+	"chghost",
 }
 
 // ErrNoConnection is returned if you try to do something requiring a connection,
 // but there is none.
 var ErrNoConnection = errors.New("irc: no connection")
+
+// ErrTargetAlreadyAdded is returned by Client.AddTarget if that target has already been
+// added to the client.
+var ErrTargetAlreadyAdded = errors.New("irc: target already added")
+
+// ErrTargetConflict is returned by Clinet.AddTarget if there already exists a target
+// matching the name and kind.
+var ErrTargetConflict = errors.New("irc: target name and kind match existing target")
+
+// ErrTargetNotFound is returned by Clinet.RemoveTarget if the target is not part of
+// the client's target list
+var ErrTargetNotFound = errors.New("irc: target not found")
+
+// ErrTargetIsStatus is returned by Clinet.RemoveTarget if the target is the client's
+// status target
+var ErrTargetIsStatus = errors.New("irc: cannot remove status target")
 
 // A Client is an IRC client. You need to use New to construct it
 type Client struct {
@@ -57,6 +75,10 @@ type Client struct {
 	quit     bool
 	isupport isupport.ISupport
 	values   map[string]interface{}
+
+	status    *Status
+	targets   []Target
+	targteIds map[Target]string
 }
 
 // New creates a new client. The context can be context.Background if you want manually to
@@ -70,7 +92,11 @@ func New(ctx context.Context, config Config) *Client {
 		capEnabled: make(map[string]bool),
 		capData:    make(map[string]string),
 		config:     config.WithDefaults(),
+		targteIds:  make(map[Target]string, 16),
+		status:     &Status{},
 	}
+
+	client.AddTarget(client.status)
 
 	client.ctx, client.cancel = context.WithCancel(ctx)
 
@@ -366,6 +392,77 @@ func (client *Client) Join(channels ...string) error {
 	return client.Sendf("JOIN %s", strings.Join(channels, ","))
 }
 
+// Target gets a target by kind and name
+func (client *Client) Target(kind string, name string) Target {
+	client.mutex.RLock()
+	defer client.mutex.RUnlock()
+
+	for _, target := range client.targets {
+		if target.Kind() == kind && target.Name() == name {
+			return target
+		}
+	}
+
+	return nil
+}
+
+// Channel is a shorthand for getting a channel target and type asserting it.
+func (client *Client) Channel(name string) *Channel {
+	target := client.Target("channel", name)
+	if target == nil {
+		return nil
+	}
+
+	return target.(*Channel)
+}
+
+// AddTarget adds a target to the client, generating a unique ID for it.
+func (client *Client) AddTarget(target Target) (id string, err error) {
+	client.mutex.Lock()
+	defer client.mutex.Unlock()
+
+	for i := range client.targets {
+		if target == client.targets[i] {
+			err = ErrTargetAlreadyAdded
+			return
+		} else if target.Kind() == client.targets[i].Kind() && target.Name() == client.targets[i].Name() {
+			err = ErrTargetConflict
+			return
+		}
+	}
+
+	id = generateClientID()
+	client.targets = append(client.targets, target)
+	client.targteIds[target] = id
+
+	return
+}
+
+// RemoveTarget removes a target to the client
+func (client *Client) RemoveTarget(target Target) (id string, err error) {
+	if target == client.status {
+		return "", ErrTargetIsStatus
+	}
+
+	client.mutex.Lock()
+	defer client.mutex.Unlock()
+
+	for i := range client.targets {
+		if target == client.targets[i] {
+			id = client.targteIds[target]
+
+			client.targets[i] = client.targets[len(client.targets)-1]
+			client.targets = client.targets[:len(client.targets)-1]
+			delete(client.targteIds, target)
+
+			return
+		}
+	}
+
+	err = ErrTargetNotFound
+	return
+}
+
 func (client *Client) handleEventLoop() {
 	ticker := time.NewTicker(time.Second * 30)
 
@@ -532,6 +629,15 @@ func (client *Client) handleEvent(event *Event) {
 			}
 		}
 
+	case "packer.nick":
+		{
+			client.handleInTargets(event.Nick, event)
+
+			if event.Nick == client.nick {
+				client.SetValue("nick", event.Arg(0))
+			}
+		}
+
 	// Handle ISupport
 	case "packet.005":
 		{
@@ -678,8 +784,90 @@ func (client *Client) handleEvent(event *Event) {
 				client.host = event.Args[2]
 				client.mutex.Unlock()
 			}
+
+			// This may be relevant in channels where the client resides.
+			client.handleInTargets(event.Nick, event)
+		}
+
+	// Join/part handling
+	case "packet.join":
+		{
+			var channel *Channel
+
+			if event.Nick == client.nick {
+				channel = &Channel{name: event.Arg(0)}
+				client.AddTarget(channel)
+			} else {
+				channel = client.Channel(event.Arg(0))
+			}
+
+			event.targets = append(event.targets, channel)
+
+			if channel != nil {
+				channel.Handle(event, client)
+			}
+		}
+
+	case "packet.part":
+		{
+			channel := client.Channel(event.Arg(0))
+			if channel == nil {
+				break
+			}
+
+			channel.Handle(event, client)
+
+			if event.Nick == client.nick {
+				client.RemoveTarget(channel)
+			} else {
+				event.targets = append(event.targets, channel)
+			}
+		}
+
+	case "packet.quit":
+		{
+			client.handleInTargets(event.Nick, event)
+		}
+
+	// Account handling
+	case "packet.account":
+		{
+			client.handleInTargets(event.Nick, event)
 		}
 	}
+}
+
+func (client *Client) handleInTargets(nick string, event *Event) {
+	client.mutex.RLock()
+	for i := range client.targets {
+		switch target := client.targets[i].(type) {
+		case *Channel:
+			{
+				if nick != "" {
+					if _, ok := target.UserList().User(event.Nick); !ok {
+						continue
+					}
+				}
+
+				event.targets = append(event.targets, target)
+
+				target.Handle(event, client)
+			}
+		case *Query:
+			{
+				if target.user.Nick == nick {
+					target.Handle(event, client)
+				}
+			}
+		case *Status:
+			{
+				if client.nick == event.Nick {
+					target.Handle(event, client)
+				}
+			}
+		}
+	}
+	client.mutex.RUnlock()
 }
 
 func generateClientID() string {
@@ -697,7 +885,7 @@ func generateClientID() string {
 		return result[:24]
 	}
 
-	binary.BigEndian.PutUint32(bytes, uint32(time.Now().Unix()))
+	binary.BigEndian.PutUint32(bytes[4:], uint32(time.Now().Unix()))
 
 	return hex.EncodeToString(bytes)
 }

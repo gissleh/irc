@@ -25,6 +25,8 @@ type Event struct {
 	cancel context.CancelFunc
 	killed bool
 	hidden bool
+
+	targets []Target
 }
 
 // NewEvent makes a new event with Kind, Verb, Time set and Args and Tags initialized.
@@ -100,6 +102,20 @@ func (event *Event) Hide() {
 // Hidden returns true if Hide has been called.
 func (event *Event) Hidden() bool {
 	return event.hidden
+}
+
+// Arg gets the argument by index. The rationale behind it is that some
+// servers may use it for the last argument in JOINs and such.
+func (event *Event) Arg(index int) string {
+	if index < 0 || index > len(event.Args) {
+		return ""
+	}
+
+	if index == len(event.Args) {
+		return event.Text
+	}
+
+	return event.Args[index]
 }
 
 // MarshalJSON makes a JSON object from the event.

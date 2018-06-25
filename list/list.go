@@ -242,6 +242,32 @@ func (list *List) Users() []User {
 	return result
 }
 
+// Patch allows editing a limited subset of the user's properties.
+func (list *List) Patch(nick string, patch UserPatch) (ok bool) {
+	list.mutex.Lock()
+	defer list.mutex.Unlock()
+
+	for _, user := range list.users {
+		if strings.EqualFold(nick, user.Nick) {
+			if patch.Account != "" || patch.ClearAccount {
+				user.Account = patch.Account
+			}
+
+			if patch.User != "" {
+				user.User = patch.User
+			}
+
+			if patch.Host != "" {
+				user.Host = patch.Host
+			}
+
+			return true
+		}
+	}
+
+	return false
+}
+
 // SetAutoSort enables or disables automatic sorting, which by default is enabled.
 // Dislabing it makes sense when doing a massive operation. Enabling it will trigger
 // a sort.
@@ -262,6 +288,11 @@ func (list *List) Clear() {
 	}
 
 	list.mutex.Unlock()
+}
+
+// Immutable gets an immutable version of the list.
+func (list *List) Immutable() Immutable {
+	return Immutable{list: list}
 }
 
 func (list *List) sort() {

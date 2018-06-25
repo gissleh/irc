@@ -11,6 +11,14 @@ type User struct {
 	PrefixedNick string `json:"prefixedNick"`
 }
 
+// UserPatch is used in List.Patch to apply changes to a user
+type UserPatch struct {
+	User         string
+	Host         string
+	Account      string
+	ClearAccount bool
+}
+
 // HighestMode returns the highest mode.
 func (user *User) HighestMode() rune {
 	if len(user.Modes) == 0 {
