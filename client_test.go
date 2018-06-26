@@ -132,6 +132,33 @@ func TestClient(t *testing.T) {
 
 				return nil
 			}},
+			{Kind: 'S', Data: ":Hunter2!~test2@172.17.37.1 PRIVMSG Test768 :Hello, World"},
+			{Kind: 'S', Data: "PING :archgisle.lan"}, // Ping/Pong to sync.
+			{Kind: 'C', Data: "PONG :archgisle.lan"},
+			{Callback: func() error {
+				query := client.Query("Hunter2")
+				if query == nil {
+					return errors.New("Did not find query")
+				}
+
+				return nil
+			}},
+			{Kind: 'S', Data: ":Hunter2!~test2@172.17.37.1 NICK SevenAsterisks"},
+			{Kind: 'S', Data: "PING :archgisle.lan"}, // Ping/Pong to sync.
+			{Kind: 'C', Data: "PONG :archgisle.lan"},
+			{Callback: func() error {
+				oldQuerry := client.Query("Hunter2")
+				if oldQuerry != nil {
+					return errors.New("Did find query by old name")
+				}
+
+				query := client.Query("SevenAsterisks")
+				if query == nil {
+					return errors.New("Did not find query by new name")
+				}
+
+				return nil
+			}},
 		},
 	}
 

@@ -419,6 +419,16 @@ func (client *Client) Channel(name string) *Channel {
 	return target.(*Channel)
 }
 
+// Query is a shorthand for getting a query target and type asserting it.
+func (client *Client) Query(name string) *Query {
+	target := client.Target("query", name)
+	if target == nil {
+		return nil
+	}
+
+	return target.(*Query)
+}
+
 // AddTarget adds a target to the client, generating a unique ID for it.
 func (client *Client) AddTarget(target Target) (id string, err error) {
 	client.mutex.Lock()
