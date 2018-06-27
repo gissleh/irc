@@ -476,6 +476,28 @@ func (client *Client) RemoveTarget(target Target) (id string, err error) {
 	return
 }
 
+// FindUser checks each channel to find user info about a user.
+func (client *Client) FindUser(nick string) (u list.User, ok bool) {
+	client.mutex.RLock()
+	defer client.mutex.RUnlock()
+
+	for _, target := range client.targets {
+		channel, ok := target.(*Channel)
+		if !ok {
+			continue
+		}
+
+		user, ok := channel.UserList().User(nick)
+		if !ok {
+			continue
+		}
+
+		return user, true
+	}
+
+	return list.User{}, false
+}
+
 func (client *Client) handleEventLoop() {
 	ticker := time.NewTicker(time.Second * 30)
 
@@ -814,7 +836,7 @@ func (client *Client) handleEvent(event *Event) {
 				channel = client.Channel(event.Arg(0))
 			}
 
-			event.targets = append(event.targets, channel)
+			client.handleInTarget(channel, event)
 
 			if channel != nil {
 				channel.Handle(event, client)
@@ -833,7 +855,7 @@ func (client *Client) handleEvent(event *Event) {
 			if event.Nick == client.nick {
 				client.RemoveTarget(channel)
 			} else {
-				event.targets = append(event.targets, channel)
+				client.handleInTarget(channel, event)
 			}
 		}
 
@@ -846,7 +868,7 @@ func (client *Client) handleEvent(event *Event) {
 		{
 			channel := client.Channel(event.Arg(2))
 			if channel != nil {
-				channel.Handle(event, client)
+				client.handleInTarget(channel, event)
 			}
 		}
 
@@ -854,7 +876,7 @@ func (client *Client) handleEvent(event *Event) {
 		{
 			channel := client.Channel(event.Arg(1))
 			if channel != nil {
-				channel.Handle(event, client)
+				client.handleInTarget(channel, event)
 			}
 		}
 
@@ -865,7 +887,7 @@ func (client *Client) handleEvent(event *Event) {
 			if client.isupport.IsChannel(targetName) {
 				channel := client.Channel(targetName)
 				if channel != nil {
-					channel.Handle(event, client)
+					client.handleInTarget(channel, event)
 				}
 			}
 		}
@@ -893,14 +915,19 @@ func (client *Client) handleEvent(event *Event) {
 					target = query
 				}
 			} else {
-				target = client.Channel(targetName)
-				if target == nil {
+				channel := client.Channel(targetName)
+				if channel != nil {
+					if user, ok := channel.UserList().User(event.Nick); ok {
+						event.RenderTags["prefixedNick"] = user.PrefixedNick
+					}
+
+					target = channel
+				} else {
 					target = client.status
 				}
 			}
 
-			target.Handle(event, client)
-			event.targets = append(event.targets, target)
+			client.handleInTarget(target, event)
 
 			if spawned {
 				// TODO: Message has higher importance // 0:Normal, 1:Important, 2:Highlight
@@ -917,8 +944,11 @@ func (client *Client) handleEvent(event *Event) {
 						continue
 					}
 
-					channel.Handle(event, client)
-					event.targets = append(event.targets, channel)
+					if user, ok := channel.UserList().User(event.Nick); ok {
+						event.RenderTags["prefixedNick"] = user.PrefixedNick
+					}
+
+					client.handleInTarget(channel, event)
 					break
 				}
 			}
@@ -926,7 +956,7 @@ func (client *Client) handleEvent(event *Event) {
 			// Otherwise, it belongs in the status target
 			if len(event.targets) == 0 {
 				client.status.Handle(event, client)
-				event.targets = append(event.targets, client.status)
+				client.handleInTarget(client.status, event)
 			}
 		}
 
@@ -944,7 +974,7 @@ func (client *Client) handleEvent(event *Event) {
 	}
 
 	if len(event.targets) == 0 {
-		event.targets = append(event.targets, client.status)
+		client.handleInTarget(client.status, event)
 	}
 }
 
@@ -960,26 +990,42 @@ func (client *Client) handleInTargets(nick string, event *Event) {
 					}
 				}
 
-				event.targets = append(event.targets, target)
-
 				target.Handle(event, client)
+
+				event.targets = append(event.targets, target)
+				event.targetIds[target] = client.targteIds[target]
 			}
 		case *Query:
 			{
 				if target.user.Nick == nick {
 					target.Handle(event, client)
+
 					event.targets = append(event.targets, target)
+					event.targetIds[target] = client.targteIds[target]
 				}
 			}
 		case *Status:
 			{
 				if client.nick == event.Nick {
 					target.Handle(event, client)
+
 					event.targets = append(event.targets, target)
+					event.targetIds[target] = client.targteIds[target]
 				}
 			}
 		}
 	}
+
+	client.mutex.RUnlock()
+}
+
+func (client *Client) handleInTarget(target Target, event *Event) {
+	client.mutex.RLock()
+
+	target.Handle(event, client)
+
+	event.targets = append(event.targets, target)
+	event.targetIds[target] = client.targteIds[target]
 
 	client.mutex.RUnlock()
 }

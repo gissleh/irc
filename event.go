@@ -26,7 +26,10 @@ type Event struct {
 	killed bool
 	hidden bool
 
-	targets []Target
+	targets   []Target
+	targetIds map[Target]string
+
+	RenderTags map[string]string
 }
 
 // NewEvent makes a new event with Kind, Verb, Time set and Args and Tags initialized.
@@ -39,6 +42,10 @@ func NewEvent(kind, verb string) Event {
 		Time: time.Now(),
 		Args: make([]string, 0, 4),
 		Tags: make(map[string]string),
+
+		targetIds: make(map[Target]string),
+
+		RenderTags: make(map[string]string),
 	}
 }
 
@@ -120,13 +127,39 @@ func (event *Event) Arg(index int) string {
 
 // MarshalJSON makes a JSON object from the event.
 func (event *Event) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
-		"kind":   event.kind,
-		"verb":   event.verb,
-		"text":   event.Text,
-		"args":   event.Args,
-		"tags":   event.Tags,
-		"killed": event.killed,
-		"hidden": event.hidden,
-	})
+	data := eventJSONData{
+		Name:       event.Name(),
+		Kind:       event.kind,
+		Verb:       event.verb,
+		Time:       event.Time,
+		Nick:       event.Nick,
+		User:       event.User,
+		Host:       event.Host,
+		Args:       event.Args,
+		Text:       event.Text,
+		Tags:       event.Tags,
+		RenderTags: event.RenderTags,
+	}
+
+	data.Targets = make([]string, 0, len(event.targets))
+	for _, target := range event.targets {
+		data.Targets = append(data.Targets, event.targetIds[target])
+	}
+
+	return json.Marshal(data)
+}
+
+type eventJSONData struct {
+	Name       string            `json:"name"`
+	Kind       string            `json:"kind"`
+	Verb       string            `json:"verb"`
+	Time       time.Time         `json:"time"`
+	Nick       string            `json:"nick"`
+	User       string            `json:"user"`
+	Host       string            `json:"host"`
+	Args       []string          `json:"args"`
+	Text       string            `json:"text"`
+	Tags       map[string]string `json:"tags"`
+	Targets    []string          `json:"targets"`
+	RenderTags map[string]string `json:"renderTags"`
 }
