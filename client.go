@@ -293,6 +293,22 @@ func (client *Client) SendQueuedf(format string, a ...interface{}) {
 	client.SendQueued(fmt.Sprintf(format, a...))
 }
 
+// SendCTCP sends a queued message with the following CTCP verb and text. If reply is true,
+// it will use a NOTICE instead of PRIVMSG.
+func (client *Client) SendCTCP(verb, targetName string, reply bool, text string) {
+	ircVerb := "PRIVMSG"
+	if reply {
+		ircVerb = "NOTICE"
+	}
+
+	client.SendQueuedf("%s %s :\x01%s %s\x01", ircVerb, targetName, verb, text)
+}
+
+// SendCTCPf is SendCTCP with a fmt.Sprintf
+func (client *Client) SendCTCPf(verb, targetName string, reply bool, format string, a ...interface{}) {
+	client.SendCTCP(verb, targetName, reply, fmt.Sprintf(format, a...))
+}
+
 // Emit sends an event through the client's event, and it will return immediately
 // unless the internal channel is filled up. The returned context can be used to
 // wait for the event, or the client's destruction.
@@ -338,6 +354,25 @@ func (client *Client) EmitSync(ctx context.Context, event Event) (err error) {
 			return ctx.Err()
 		}
 	}
+}
+
+// EmitInput emits an input event parsed from the line.
+func (client *Client) EmitInput(line string, target Target) context.Context {
+	event := ParseInput(line)
+
+	if target != nil {
+		client.mutex.RLock()
+		event.targets = append(event.targets, target)
+		event.targetIds[target] = client.targteIds[target]
+		client.mutex.RUnlock()
+	} else {
+		client.mutex.RLock()
+		event.targets = append(event.targets, client.status)
+		event.targetIds[client.status] = client.targteIds[client.status]
+		client.mutex.RUnlock()
+	}
+
+	return client.Emit(event)
 }
 
 // Value gets a client value.
@@ -512,6 +547,11 @@ func (client *Client) handleEventLoop() {
 				client.handleEvent(event)
 				emit(event, client)
 
+				// Turn an unhandled input into a raw command.
+				if event.kind == "input" && !event.Killed() {
+					client.SendQueued(strings.ToUpper(event.verb) + " " + event.Text)
+				}
+
 				event.cancel()
 			}
 		case <-ticker.C:
@@ -560,7 +600,7 @@ func (client *Client) handleSendLoop() {
 				time.Sleep(time.Second - deltaTime)
 				lastRefresh = now
 
-				queue = 0
+				queue = 1
 			}
 		} else {
 			lastRefresh = now

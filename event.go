@@ -91,6 +91,9 @@ func (event *Event) Context() context.Context {
 
 // Kill stops propagation of the event. The context will be killed once
 // the current event handler returns.
+//
+// A use case for this is to prevent the default input handler from firing
+// on an already prcoessed input event.
 func (event *Event) Kill() {
 	event.killed = true
 }
@@ -123,6 +126,59 @@ func (event *Event) Arg(index int) string {
 	}
 
 	return event.Args[index]
+}
+
+// Target finds the first target with one of the kinds specified. If none
+// are specified, the first target will be returned. If more than one
+// is provided, the first kinds are prioritized.
+func (event *Event) Target(kinds ...string) Target {
+	if len(event.targets) == 0 {
+		return nil
+	}
+
+	if len(kinds) == 0 || kinds[0] == "" {
+		return event.targets[0]
+	}
+
+	for _, kind := range kinds {
+		for _, target := range event.targets {
+			if target.Kind() == kind {
+				return target
+			}
+		}
+	}
+
+	return nil
+}
+
+// ChannelTarget gets the first channel target.
+func (event *Event) ChannelTarget() *Channel {
+	target := event.Target("channel")
+	if target == nil {
+		return nil
+	}
+
+	return target.(*Channel)
+}
+
+// QueryTarget gets the first query target.
+func (event *Event) QueryTarget() *Query {
+	target := event.Target("query")
+	if target == nil {
+		return nil
+	}
+
+	return target.(*Query)
+}
+
+// StatusTarget gets the first status target.
+func (event *Event) StatusTarget() *Status {
+	target := event.Target("status")
+	if target == nil {
+		return nil
+	}
+
+	return target.(*Status)
 }
 
 // MarshalJSON makes a JSON object from the event.

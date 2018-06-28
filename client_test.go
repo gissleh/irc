@@ -6,10 +6,14 @@ import (
 	"testing"
 
 	"git.aiterp.net/gisle/irc"
+	"git.aiterp.net/gisle/irc/handlers"
 	"git.aiterp.net/gisle/irc/internal/irctest"
 )
 
 func TestClient(t *testing.T) {
+	irc.Handle(handlers.Input)
+	irc.Handle(handlers.MRoleplay)
+
 	client := irc.New(context.Background(), irc.Config{
 		Nick:         "Test",
 		User:         "Tester",
@@ -71,8 +75,8 @@ func TestClient(t *testing.T) {
 			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 MODE #Test +N-s "},
 			{Kind: 'S', Data: ":Test1234!~test2@172.17.37.1 JOIN #Test Test1234"},
 			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 MODE #Test +v Test1234"},
-			{Kind: 'S', Data: "PING :archgisle.lan"}, // Ping/Pong to sync.
-			{Kind: 'C', Data: "PONG :archgisle.lan"},
+			{Kind: 'S', Data: "PING :testserver.example.com"}, // Ping/Pong to sync.
+			{Kind: 'C', Data: "PONG :testserver.example.com"},
 			{Callback: func() error {
 				channel := client.Channel("#Test")
 				if channel == nil {
@@ -98,8 +102,8 @@ func TestClient(t *testing.T) {
 			{Kind: 'S', Data: ":Hunter2!~test2@172.17.37.1 AWAY :Doing stuff"},
 			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 AWAY"},
 			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 PART #Test :Leaving the channel"},
-			{Kind: 'S', Data: "PING :archgisle.lan"}, // Ping/Pong to sync.
-			{Kind: 'C', Data: "PONG :archgisle.lan"},
+			{Kind: 'S', Data: "PING :testserver.example.com"}, // Ping/Pong to sync.
+			{Kind: 'C', Data: "PONG :testserver.example.com"},
 			{Callback: func() error {
 				channel := client.Channel("#Test")
 				if channel == nil {
@@ -133,8 +137,8 @@ func TestClient(t *testing.T) {
 				return nil
 			}},
 			{Kind: 'S', Data: ":Hunter2!~test2@172.17.37.1 PRIVMSG Test768 :Hello, World"},
-			{Kind: 'S', Data: "PING :archgisle.lan"}, // Ping/Pong to sync.
-			{Kind: 'C', Data: "PONG :archgisle.lan"},
+			{Kind: 'S', Data: "PING :testserver.example.com"}, // Ping/Pong to sync.
+			{Kind: 'C', Data: "PONG :testserver.example.com"},
 			{Callback: func() error {
 				query := client.Query("Hunter2")
 				if query == nil {
@@ -144,8 +148,8 @@ func TestClient(t *testing.T) {
 				return nil
 			}},
 			{Kind: 'S', Data: ":Hunter2!~test2@172.17.37.1 NICK SevenAsterisks"},
-			{Kind: 'S', Data: "PING :archgisle.lan"}, // Ping/Pong to sync.
-			{Kind: 'C', Data: "PONG :archgisle.lan"},
+			{Kind: 'S', Data: "PING :testserver.example.com"}, // Ping/Pong to sync.
+			{Kind: 'C', Data: "PONG :testserver.example.com"},
 			{Callback: func() error {
 				oldQuerry := client.Query("Hunter2")
 				if oldQuerry != nil {
@@ -159,6 +163,32 @@ func TestClient(t *testing.T) {
 
 				return nil
 			}},
+			{Callback: func() error {
+				client.EmitInput("/invalidcommand stuff and things", nil)
+				return nil
+			}},
+			{Kind: 'C', Data: "INVALIDCOMMAND stuff and things"},
+			{Kind: 'S', Data: ":testserver.example.com 421 Test768 INVALIDCOMMAND :Unknown command"},
+			{Callback: func() error {
+				channel := client.Channel("#Test")
+				if channel == nil {
+					return errors.New("Channel #Test not found")
+				}
+
+				client.EmitInput("/me does stuff", channel)
+				client.EmitInput("/describe #Test describes stuff", channel)
+				client.EmitInput("/text Hello, World", channel)
+				client.EmitInput("Hello again", channel)
+				return nil
+			}},
+			{Kind: 'C', Data: "PRIVMSG #Test :\x01ACTION does stuff\x01"},
+			{Kind: 'C', Data: "PRIVMSG #Test :\x01ACTION describes stuff\x01"},
+			{Kind: 'C', Data: "PRIVMSG #Test :Hello, World"},
+			{Kind: 'C', Data: "PRIVMSG #Test :Hello again"},
+			{Kind: 'S', Data: ":Test768!~test@127.0.0.1 PRIVMSG #Test :\x01ACTION does stuff\x01"},
+			{Kind: 'S', Data: ":Test768!~test@127.0.0.1 PRIVMSG #Test :\x01ACTION describes stuff\x01"},
+			{Kind: 'S', Data: ":Test768!~test@127.0.0.1 PRIVMSG #Test :Hello, World"},
+			{Kind: 'S', Data: ":Test768!~test@127.0.0.1 PRIVMSG #Test :Hello again"},
 		},
 	}
 

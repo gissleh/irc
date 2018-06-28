@@ -63,7 +63,7 @@ func (interaction *Interaction) Listen() (addr string, err error) {
 					}
 				case 'C':
 					{
-						conn.SetReadDeadline(time.Now().Add(time.Second))
+						conn.SetReadDeadline(time.Now().Add(time.Second * 2))
 						input, err := reader.ReadString('\n')
 						if err != nil {
 							interaction.Failure = &InteractionFailure{

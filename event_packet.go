@@ -8,7 +8,7 @@ import (
 
 var unescapeTags = strings.NewReplacer("\\\\", "\\", "\\:", ";", "\\s", " ", "\\r", "\r", "\\n", "\n")
 
-// ParsePacket parses and irc line and returns an event that's either of kind `packet`, `ctcp` or `ctcpreply`
+// ParsePacket parses an irc line and returns an event that's either of kind `packet`, `ctcp` or `ctcpreply`
 func ParsePacket(line string) (Event, error) {
 	event := NewEvent("packet", "")
 	event.Time = time.Now()
