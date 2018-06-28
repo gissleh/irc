@@ -548,7 +548,7 @@ func (client *Client) handleEventLoop() {
 				emit(event, client)
 
 				// Turn an unhandled input into a raw command.
-				if event.kind == "input" && !event.Killed() {
+				if event.kind == "input" && !event.preventedDefault {
 					client.SendQueued(strings.ToUpper(event.verb) + " " + event.Text)
 				}
 

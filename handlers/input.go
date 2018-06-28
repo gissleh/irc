@@ -12,7 +12,7 @@ func Input(event *irc.Event, client *irc.Client) {
 	// /msg sends an action to a target specified before the message.
 	case "input.msg":
 		{
-			event.Kill()
+			event.PreventDefault()
 
 			targetName, text := ircutil.ParseArgAndText(event.Text)
 			if targetName == "" || text == "" {
@@ -30,7 +30,7 @@ func Input(event *irc.Event, client *irc.Client) {
 	// /text (or text without a command) sends a message to the target.
 	case "input.text":
 		{
-			event.Kill()
+			event.PreventDefault()
 
 			if event.Text == "" {
 				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /text <text...>"))
@@ -53,7 +53,7 @@ func Input(event *irc.Event, client *irc.Client) {
 	// /me and /action sends a CTCP ACTION.
 	case "input.me", "input.action":
 		{
-			event.Kill()
+			event.PreventDefault()
 
 			if event.Text == "" {
 				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /me <text...>"))
@@ -76,7 +76,7 @@ func Input(event *irc.Event, client *irc.Client) {
 	// /describe sends an action to a target specified before the message, like /msg.
 	case "input.describe":
 		{
-			event.Kill()
+			event.PreventDefault()
 
 			targetName, text := ircutil.ParseArgAndText(event.Text)
 			if targetName == "" || text == "" {
@@ -94,7 +94,7 @@ func Input(event *irc.Event, client *irc.Client) {
 	// /m is a shorthand for /mode that targets the current channel
 	case "input.m":
 		{
-			event.Kill()
+			event.PreventDefault()
 
 			if event.Text == "" {
 				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /m <text...>"))

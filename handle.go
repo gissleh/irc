@@ -17,9 +17,6 @@ func emit(event *Event, client *Client) {
 	eventHandler.mutex.RLock()
 	for _, handler := range eventHandler.handlers {
 		handler(event, client)
-		if event.killed {
-			break
-		}
 	}
 	eventHandler.mutex.RUnlock()
 }

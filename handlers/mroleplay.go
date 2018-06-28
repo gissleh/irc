@@ -60,7 +60,7 @@ func MRoleplay(event *irc.Event, client *irc.Client) {
 				client.SendQueuedf("%s %s %s :%s", npcCommand, channel.Name(), nick, cut)
 			}
 
-			event.Kill()
+			event.PreventDefault()
 		}
 	case "input.scenec":
 		{
@@ -81,7 +81,7 @@ func MRoleplay(event *irc.Event, client *irc.Client) {
 				client.SendQueuedf("SCENE %s :%s", channel.Name(), cut)
 			}
 
-			event.Kill()
+			event.PreventDefault()
 		}
 	}
 }

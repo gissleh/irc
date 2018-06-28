@@ -21,10 +21,10 @@ type Event struct {
 	Text string
 	Tags map[string]string
 
-	ctx    context.Context
-	cancel context.CancelFunc
-	killed bool
-	hidden bool
+	ctx              context.Context
+	cancel           context.CancelFunc
+	preventedDefault bool
+	hidden           bool
 
 	targets   []Target
 	targetIds map[Target]string
@@ -89,18 +89,13 @@ func (event *Event) Context() context.Context {
 	return event.ctx
 }
 
-// Kill stops propagation of the event. The context will be killed once
+// PreventDefault stops propagation of the event. The context will be killed once
 // the current event handler returns.
 //
 // A use case for this is to prevent the default input handler from firing
 // on an already prcoessed input event.
-func (event *Event) Kill() {
-	event.killed = true
-}
-
-// Killed returns true if Kill has been called.
-func (event *Event) Killed() bool {
-	return event.killed
+func (event *Event) PreventDefault() {
+	event.preventedDefault = true
 }
 
 // Hide will not stop propagation, but it will allow output handlers to know not to
