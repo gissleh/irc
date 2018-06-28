@@ -19,6 +19,7 @@ func TestClient(t *testing.T) {
 		User:         "Tester",
 		RealName:     "...",
 		Alternatives: []string{"Test2", "Test3", "Test4", "Test768"},
+		SendRate:     1000,
 	})
 
 	t.Logf("Client.ID = %#+v", client.ID())
@@ -189,6 +190,20 @@ func TestClient(t *testing.T) {
 			{Kind: 'S', Data: ":Test768!~test@127.0.0.1 PRIVMSG #Test :\x01ACTION describes stuff\x01"},
 			{Kind: 'S', Data: ":Test768!~test@127.0.0.1 PRIVMSG #Test :Hello, World"},
 			{Kind: 'S', Data: ":Test768!~test@127.0.0.1 PRIVMSG #Test :Hello again"},
+			{Callback: func() error {
+				channel := client.Channel("#Test")
+				if channel == nil {
+					return errors.New("Channel #Test not found")
+				}
+
+				client.EmitInput("/m +N", channel)
+				client.EmitInput("/npcac Test_NPC stuffs things", channel)
+				return nil
+			}},
+			{Kind: 'C', Data: "MODE #Test +N"},
+			{Kind: 'C', Data: "NPCA #Test Test_NPC :stuffs things"},
+			{Kind: 'S', Data: ":Test768!~test@127.0.0.1 MODE #Test +N"},
+			{Kind: 'S', Data: ":\x1FTest_NPC\x1F!Test768@npc.fakeuser.invalid PRIVMSG #Test :\x01ACTION stuffs things\x01"},
 		},
 	}
 

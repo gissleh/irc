@@ -588,7 +588,7 @@ end:
 
 func (client *Client) handleSendLoop() {
 	lastRefresh := time.Time{}
-	queue := 2
+	queue := client.config.SendRate
 
 	for line := range client.sends {
 		now := time.Now()
@@ -600,10 +600,11 @@ func (client *Client) handleSendLoop() {
 				time.Sleep(time.Second - deltaTime)
 				lastRefresh = now
 
-				queue = 1
+				queue = client.config.SendRate - 1
 			}
 		} else {
 			lastRefresh = now
+			queue = client.config.SendRate - 1
 		}
 
 		client.Send(line)

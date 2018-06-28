@@ -26,6 +26,10 @@ type Config struct {
 
 	// The Password used upon connection. This is not your NickServ/SASL password!
 	Password string
+
+	// The rate (lines per second) to send with Client.SendQueued. Default is 2, which is how
+	// clients that don't excess flood does it.
+	SendRate int
 }
 
 // WithDefaults returns the config with the default values
@@ -45,6 +49,10 @@ func (config Config) WithDefaults() Config {
 		for i := 0; i < 9; i++ {
 			config.Alternatives[i] = config.Nick + strconv.FormatInt(int64(i+1), 10)
 		}
+	}
+
+	if config.SendRate <= 0 {
+		config.SendRate = 2
 	}
 
 	return config

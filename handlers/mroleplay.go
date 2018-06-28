@@ -49,7 +49,7 @@ func MRoleplay(event *irc.Event, client *irc.Client) {
 			}
 
 			overhead := ircutil.MessageOverhead("\x1f"+nick+"\x1f", client.Nick(), "npc.fakeuser.invalid", channel.Name(), isAction)
-			cuts := ircutil.CutMessage(event.Text, overhead)
+			cuts := ircutil.CutMessage(text, overhead)
 
 			for _, cut := range cuts {
 				npcCommand := "NPCA"
@@ -57,7 +57,7 @@ func MRoleplay(event *irc.Event, client *irc.Client) {
 					npcCommand = "NPC"
 				}
 
-				client.SendQueuedf("%s %s :%s", npcCommand, channel.Name(), cut)
+				client.SendQueuedf("%s %s %s :%s", npcCommand, channel.Name(), nick, cut)
 			}
 
 			event.Kill()

@@ -12,6 +12,8 @@ func Input(event *irc.Event, client *irc.Client) {
 	// /msg sends an action to a target specified before the message.
 	case "input.msg":
 		{
+			event.Kill()
+
 			targetName, text := ircutil.ParseArgAndText(event.Text)
 			if targetName == "" || text == "" {
 				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /msg <target> <text...>"))
@@ -23,13 +25,13 @@ func Input(event *irc.Event, client *irc.Client) {
 			for _, cut := range cuts {
 				client.Sendf("PRIVMSG %s :%s", targetName, cut)
 			}
-
-			event.Kill()
 		}
 
 	// /text (or text without a command) sends a message to the target.
 	case "input.text":
 		{
+			event.Kill()
+
 			if event.Text == "" {
 				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /text <text...>"))
 				break
@@ -46,13 +48,13 @@ func Input(event *irc.Event, client *irc.Client) {
 			for _, cut := range cuts {
 				client.SendQueuedf("PRIVMSG %s :%s", target.Name(), cut)
 			}
-
-			event.Kill()
 		}
 
 	// /me and /action sends a CTCP ACTION.
 	case "input.me", "input.action":
 		{
+			event.Kill()
+
 			if event.Text == "" {
 				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /me <text...>"))
 				break
@@ -69,13 +71,13 @@ func Input(event *irc.Event, client *irc.Client) {
 			for _, cut := range cuts {
 				client.SendCTCP("ACTION", target.Name(), false, cut)
 			}
-
-			event.Kill()
 		}
 
 	// /describe sends an action to a target specified before the message, like /msg.
 	case "input.describe":
 		{
+			event.Kill()
+
 			targetName, text := ircutil.ParseArgAndText(event.Text)
 			if targetName == "" || text == "" {
 				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /describe <target> <text...>"))
@@ -87,20 +89,20 @@ func Input(event *irc.Event, client *irc.Client) {
 			for _, cut := range cuts {
 				client.SendCTCP("ACTION", targetName, false, cut)
 			}
-
-			event.Kill()
 		}
 
 	// /m is a shorthand for /mode that targets the current channel
 	case "input.m":
 		{
+			event.Kill()
+
 			if event.Text == "" {
 				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /m <text...>"))
 				break
 			}
 
 			channel := event.ChannelTarget()
-			if channel != nil {
+			if channel == nil {
 				client.EmitNonBlocking(irc.NewErrorEvent("input", "Target is not a channel"))
 				break
 			}

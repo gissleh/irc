@@ -12,7 +12,7 @@ func ParseInput(line string) Event {
 
 	if strings.HasPrefix(line, "/") {
 		split := strings.SplitN(line[1:], " ", 2)
-		event.verb = split[0]
+		event.verb = strings.ToLower(split[0])
 		if len(split) == 2 {
 			event.Text = split[1]
 		}
