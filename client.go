@@ -977,20 +977,33 @@ func (client *Client) handleEvent(event *Event) {
 
 	case "packet.notice":
 		{
-			// Try to target by mentioned channel name
-			for _, token := range strings.Fields(event.Text) {
-				if client.isupport.IsChannel(token) {
-					channel := client.Channel(token)
-					if channel == nil {
-						continue
-					}
-
+			// Find channel target
+			targetName := event.Arg(0)
+			if client.isupport.IsChannel(targetName) {
+				channel := client.Channel(targetName)
+				if channel != nil {
 					if user, ok := channel.UserList().User(event.Nick); ok {
 						event.RenderTags["prefixedNick"] = user.PrefixedNick
 					}
 
 					client.handleInTarget(channel, event)
-					break
+				}
+			} else {
+				// Try to target by mentioned channel name
+				for _, token := range strings.Fields(event.Text) {
+					if client.isupport.IsChannel(token) {
+						channel := client.Channel(token)
+						if channel == nil {
+							continue
+						}
+
+						if user, ok := channel.UserList().User(event.Nick); ok {
+							event.RenderTags["prefixedNick"] = user.PrefixedNick
+						}
+
+						client.handleInTarget(channel, event)
+						break
+					}
 				}
 			}
 
