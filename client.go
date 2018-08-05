@@ -510,7 +510,7 @@ func (client *Client) RemoveTarget(target Target) (id string, err error) {
 
 			// Ensure the channel has been parted
 			if channel, ok := target.(*Channel); ok && !channel.parted {
-				client.SendQueuedf("/part %s")
+				client.SendQueuedf("/part %s", channel.Name())
 			}
 
 			return
