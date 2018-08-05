@@ -31,10 +31,6 @@ func TestHandle(t *testing.T) {
 		t.Error("Event wasn't handled")
 	}
 
-	if !irc.RemoveHandler(handle) {
-		t.Error("Couldn't remove handler")
-	}
-
 	handled = false
 	client.EmitSync(context.Background(), event)
 
