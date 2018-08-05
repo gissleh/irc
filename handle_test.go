@@ -30,13 +30,6 @@ func TestHandle(t *testing.T) {
 	if !handled {
 		t.Error("Event wasn't handled")
 	}
-
-	handled = false
-	client.EmitSync(context.Background(), event)
-
-	if handled {
-		t.Error("Event was handled after handler was removed")
-	}
 }
 
 func BenchmarkHandle(b *testing.B) {
