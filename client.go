@@ -444,6 +444,16 @@ func (client *Client) Target(kind string, name string) Target {
 	return nil
 }
 
+// Status gets the client's status target.
+func (client *Client) Status() *Status {
+	target := client.Target("status", "Status")
+	if target == nil {
+		return nil
+	}
+
+	return target.(*Status)
+}
+
 // Channel is a shorthand for getting a channel target and type asserting it.
 func (client *Client) Channel(name string) *Channel {
 	target := client.Target("channel", name)
