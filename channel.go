@@ -53,12 +53,6 @@ func (channel *Channel) Handle(event *Event, client *Client) {
 		}
 	case "packet.part", "packet.quit":
 		{
-			// Close the target if the client has left
-			if event.Nick == client.Nick() && event.Name() == "packet.part" {
-				channel.parted = true
-				client.RemoveTarget(channel)
-			}
-
 			channel.userlist.Remove(event.Nick)
 		}
 	case "packet.nick":
