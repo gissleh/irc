@@ -503,6 +503,11 @@ func (client *Client) RemoveTarget(target Target) (id string, err error) {
 			client.targets = client.targets[:len(client.targets)-1]
 			delete(client.targteIds, target)
 
+			// Ensure the channel has been parted
+			if channel, ok := target.(*Channel); ok && !channel.parted {
+				client.SendQueuedf("/part %s")
+			}
+
 			return
 		}
 	}
@@ -619,6 +624,11 @@ func (client *Client) handleEvent(event *Event) {
 		if err == nil && serverTime.Year() > 2000 {
 			event.Time = serverTime
 		}
+	}
+
+	// For events that were created with targets, handle them now there now.
+	for _, target := range event.targets {
+		target.Handle(event, client)
 	}
 
 	switch event.name {
@@ -1024,6 +1034,27 @@ func (client *Client) handleEvent(event *Event) {
 	case "packet.away":
 		{
 			client.handleInTargets(event.Nick, event)
+		}
+
+	// Auto-join
+	case "packet.376", "packet.422":
+		{
+			client.mutex.RLock()
+			channels := make([]string, 0, len(client.targets))
+			rejoinEvent := NewEvent("info", "rejoin")
+			for _, target := range client.targets {
+				if channel, ok := target.(*Channel); ok {
+					channels = append(channels, channel.Name())
+
+					rejoinEvent.targets = append(rejoinEvent.targets, target)
+					rejoinEvent.targetIds[target] = client.targteIds[target]
+				}
+			}
+			client.mutex.RUnlock()
+
+			client.Sendf("JOIN %s", strings.Join(channels, ","))
+
+			client.EmitNonBlocking(rejoinEvent)
 		}
 	}
 

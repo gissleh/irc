@@ -10,6 +10,7 @@ import (
 type Channel struct {
 	name     string
 	userlist *list.List
+	parted   bool
 }
 
 // Kind returns "channel"
@@ -25,6 +26,11 @@ func (channel *Channel) Name() string {
 // UserList gets the channel userlist
 func (channel *Channel) UserList() list.Immutable {
 	return channel.userlist.Immutable()
+}
+
+// Parted returnes whether the channel has been parted
+func (channel *Channel) Parted() bool {
+	return channel.parted
 }
 
 // Handle handles messages routed to this channel by the client's event loop
@@ -47,6 +53,12 @@ func (channel *Channel) Handle(event *Event, client *Client) {
 		}
 	case "packet.part", "packet.quit":
 		{
+			// Close the target if the client has left
+			if event.Nick == client.Nick() && event.Name() == "packet.part" {
+				channel.parted = true
+				client.RemoveTarget(channel)
+			}
+
 			channel.userlist.Remove(event.Nick)
 		}
 	case "packet.nick":
