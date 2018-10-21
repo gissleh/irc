@@ -376,12 +376,11 @@ func (client *Client) EmitInput(line string, target Target) context.Context {
 }
 
 // Value gets a client value.
-func (client *Client) Value(key string) (v interface{}, ok bool) {
+func (client *Client) Value(key string) interface{} {
 	client.mutex.RLock()
-	v, ok = client.values[key]
-	client.mutex.RUnlock()
+	defer client.mutex.RUnlock()
 
-	return
+	return client.values[key]
 }
 
 // SetValue sets a client value.
