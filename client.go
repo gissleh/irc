@@ -658,7 +658,7 @@ func (client *Client) handleEvent(event *Event) {
 				message += " :" + event.Text
 			}
 
-			client.Send(message + "")
+			client.Send(message)
 		}
 
 	// Client Registration
@@ -1059,6 +1059,7 @@ func (client *Client) handleEvent(event *Event) {
 			client.Sendf("JOIN %s", strings.Join(channels, ","))
 
 			client.EmitNonBlocking(rejoinEvent)
+			client.EmitNonBlocking(NewEvent("hook", "ready"))
 		}
 	}
 

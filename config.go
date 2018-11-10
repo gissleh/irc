@@ -25,11 +25,11 @@ type Config struct {
 	SkipSSLVerification bool `json:"skipSslVerification"`
 
 	// The Password used upon connection. This is not your NickServ/SASL password!
-	Password string
+	Password string `json:"password"`
 
 	// The rate (lines per second) to send with Client.SendQueued. Default is 2, which is how
 	// clients that don't excess flood does it.
-	SendRate int
+	SendRate int `json:"sendRate"`
 }
 
 // WithDefaults returns the config with the default values
