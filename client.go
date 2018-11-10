@@ -443,6 +443,32 @@ func (client *Client) Target(kind string, name string) Target {
 	return nil
 }
 
+// Targets gets all targets of the given kinds.
+func (client *Client) Targets(kinds ...string) []Target {
+	if len(kinds) == 0 {
+		client.mutex.Lock()
+		targets := make([]Target, len(client.targets))
+		copy(targets, client.targets)
+		client.mutex.Unlock()
+
+		return targets
+	}
+
+	client.mutex.Lock()
+	targets := make([]Target, 0, len(client.targets))
+	for _, target := range client.targets {
+		for _, kind := range kinds {
+			if target.Kind() == kind {
+				targets = append(targets, target)
+				break
+			}
+		}
+	}
+	client.mutex.Unlock()
+
+	return targets
+}
+
 // Status gets the client's status target.
 func (client *Client) Status() *Status {
 	return client.status
@@ -456,6 +482,18 @@ func (client *Client) Channel(name string) *Channel {
 	}
 
 	return target.(*Channel)
+}
+
+// Channels gets all channel targets the client has.
+func (client *Client) Channels() []*Channel {
+	targets := client.Targets("channel")
+	channels := make([]*Channel, len(targets))
+
+	for i := range targets {
+		channels[i] = targets[i].(*Channel)
+	}
+
+	return channels
 }
 
 // Query is a shorthand for getting a query target and type asserting it.
