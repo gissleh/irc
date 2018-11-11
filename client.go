@@ -1078,7 +1078,7 @@ func (client *Client) handleEvent(event *Event) {
 			client.handleInTargets(event.Nick, event)
 		}
 
-	// Auto-join
+	// Auto-rejoin
 	case "packet.376", "packet.422":
 		{
 			client.mutex.RLock()
@@ -1094,9 +1094,11 @@ func (client *Client) handleEvent(event *Event) {
 			}
 			client.mutex.RUnlock()
 
-			client.Sendf("JOIN %s", strings.Join(channels, ","))
+			if len(channels) > 0 {
+				client.Sendf("JOIN %s", strings.Join(channels, ","))
+				client.EmitNonBlocking(rejoinEvent)
+			}
 
-			client.EmitNonBlocking(rejoinEvent)
 			client.EmitNonBlocking(NewEvent("hook", "ready"))
 		}
 	}
