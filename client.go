@@ -429,6 +429,11 @@ func (client *Client) Join(channels ...string) error {
 	return client.Sendf("JOIN %s", strings.Join(channels, ","))
 }
 
+// Part parts one or more channels.
+func (client *Client) Part(channels ...string) error {
+	return client.Sendf("PART %s", strings.Join(channels, ","))
+}
+
 // Target gets a target by kind and name
 func (client *Client) Target(kind string, name string) Target {
 	client.mutex.RLock()
