@@ -309,6 +309,36 @@ func (client *Client) SendCTCPf(verb, targetName string, reply bool, format stri
 	client.SendCTCP(verb, targetName, reply, fmt.Sprintf(format, a...))
 }
 
+// Say sends a PRIVMSG with the target name and text, cutting the message if it gets too long.
+func (client *Client) Say(targetName string, text string) {
+	overhead := client.PrivmsgOverhead(targetName, false)
+	cuts := ircutil.CutMessage(text, overhead)
+
+	for _, cut := range cuts {
+		client.SendQueuedf("PRIVMSG %s :%s", targetName, cut)
+	}
+}
+
+// Sayf is Say with a fmt.Sprintf.
+func (client *Client) Sayf(targetName string, format string, a ...interface{}) {
+	client.Say(targetName, fmt.Sprintf(format, a...))
+}
+
+// Describe sends a CTCP ACTION with the target name and text, cutting the message if it gets too long.
+func (client *Client) Describe(targetName string, text string) {
+	overhead := client.PrivmsgOverhead(targetName, true)
+	cuts := ircutil.CutMessage(text, overhead)
+
+	for _, cut := range cuts {
+		client.SendQueuedf("PRIVMSG %s :\x01ACTION %s\x01", targetName, cut)
+	}
+}
+
+// Describef is Describe with a fmt.Sprintf.
+func (client *Client) Describef(targetName string, format string, a ...interface{}) {
+	client.Describe(targetName, fmt.Sprintf(format, a...))
+}
+
 // Emit sends an event through the client's event, and it will return immediately
 // unless the internal channel is filled up. The returned context can be used to
 // wait for the event, or the client's destruction.

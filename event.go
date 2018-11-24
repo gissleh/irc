@@ -109,8 +109,8 @@ func (event *Event) Hidden() bool {
 	return event.hidden
 }
 
-// Arg gets the argument by index. The rationale behind it is that some
-// servers may use it for the last argument in JOINs and such.
+// Arg gets the argument by index, counting the trailing as the last argument. The rationale
+// behind it is that some servers may use it for the last argument in JOINs and such.
 func (event *Event) Arg(index int) string {
 	if index < 0 || index > len(event.Args) {
 		return ""
