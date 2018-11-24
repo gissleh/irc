@@ -763,7 +763,7 @@ func (client *Client) handleEvent(event *Event) {
 			client.Sendf("WHO %s", event.Args[0])
 		}
 
-	case "packet.443":
+	case "packet.431", "packet.432", "packet.433", "packet.436":
 		{
 			client.mutex.RLock()
 			hasRegistered := client.nick != ""
