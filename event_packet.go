@@ -77,17 +77,17 @@ func ParsePacket(line string) (Event, error) {
 	if (event.verb == "PRIVMSG" || event.verb == "NOTICE") && strings.HasPrefix(event.Text, "\x01") {
 		verbtext := strings.SplitN(strings.Replace(event.Text, "\x01", "", 2), " ", 2)
 
+		if event.verb == "PRIVMSG" {
+			event.kind = "ctcp"
+		} else {
+			event.kind = "ctcp-reply"
+		}
+
 		event.verb = verbtext[0]
 		if len(verbtext) == 2 {
 			event.Text = verbtext[1]
 		} else {
 			event.Text = ""
-		}
-
-		if event.verb == "PRIVMSG" {
-			event.kind = "ctcp"
-		} else {
-			event.kind = "ctcp-reply"
 		}
 	}
 
