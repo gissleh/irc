@@ -473,13 +473,13 @@ func (client *Client) PrivmsgOverhead(targetName string, action bool) int {
 }
 
 // Join joins one or more channels without a key.
-func (client *Client) Join(channels ...string) error {
-	return client.Sendf("JOIN %s", strings.Join(channels, ","))
+func (client *Client) Join(channels ...string) {
+	client.SendQueuedf("JOIN %s", strings.Join(channels, ","))
 }
 
 // Part parts one or more channels.
-func (client *Client) Part(channels ...string) error {
-	return client.Sendf("PART %s", strings.Join(channels, ","))
+func (client *Client) Part(channels ...string) {
+	client.SendQueuedf("PART %s", strings.Join(channels, ","))
 }
 
 // Target gets a target by kind and name

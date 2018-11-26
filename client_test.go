@@ -3,7 +3,6 @@ package irc_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 
 	"git.aiterp.net/gisle/irc"
@@ -102,11 +101,7 @@ func TestClient(t *testing.T) {
 				return nil
 			}},
 			{Callback: func() error {
-				err := client.Join("#Test")
-				if err != nil {
-					return fmt.Errorf("Failed to join #Test: %s", err)
-				}
-
+				client.Join("#Test")
 				return nil
 			}},
 			{Kind: 'C', Data: "JOIN #Test"},
@@ -264,11 +259,7 @@ func TestClient(t *testing.T) {
 			{Kind: 'C', Data: "PRIVMSG #Test :\x01ACTION does stuff with 42 things\x01"},
 			{Kind: 'C', Data: "PRIVMSG #Test :Hello, World"},
 			{Callback: func() error {
-				err := client.Part("#Test")
-				if err != nil {
-					return fmt.Errorf("Failed to part #Test: %s", err)
-				}
-
+				client.Part("#Test")
 				return nil
 			}},
 			{Kind: 'C', Data: "PART #Test"},
