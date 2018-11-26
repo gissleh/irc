@@ -76,6 +76,7 @@ type Client struct {
 	user     string
 	host     string
 	quit     bool
+	ready    bool
 	isupport isupport.ISupport
 	values   map[string]interface{}
 
@@ -161,6 +162,14 @@ func (client *Client) CapEnabled(cap string) bool {
 	return client.capEnabled[cap]
 }
 
+// Ready returns true if the client is marked as ready, which means that it has received the MOTD.
+func (client *Client) Ready() bool {
+	client.mutex.RLock()
+	defer client.mutex.RUnlock()
+
+	return client.ready
+}
+
 // Connect connects to the server by addr.
 func (client *Client) Connect(addr string, ssl bool) (err error) {
 	var conn net.Conn
@@ -214,6 +223,7 @@ func (client *Client) Connect(addr string, ssl bool) (err error) {
 
 		client.mutex.Lock()
 		client.conn = nil
+		client.ready = false
 		client.mutex.Unlock()
 
 		client.Emit(NewEvent("client", "disconnect"))
@@ -1150,6 +1160,10 @@ func (client *Client) handleEvent(event *Event) {
 				client.Sendf("JOIN %s", strings.Join(channels, ","))
 				client.EmitNonBlocking(rejoinEvent)
 			}
+
+			client.mutex.Lock()
+			client.ready = true
+			client.mutex.Unlock()
 
 			client.EmitNonBlocking(NewEvent("hook", "ready"))
 		}
