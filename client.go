@@ -153,6 +153,14 @@ func (client *Client) ISupport() *isupport.ISupport {
 	return &client.isupport
 }
 
+// CapEnabled returns whether an IRCv3 capability is enabled.
+func (client *Client) CapEnabled(cap string) bool {
+	client.mutex.RLock()
+	defer client.mutex.RUnlock()
+
+	return client.capEnabled[cap]
+}
+
 // Connect connects to the server by addr.
 func (client *Client) Connect(addr string, ssl bool) (err error) {
 	var conn net.Conn
@@ -737,20 +745,29 @@ func (client *Client) handleEvent(event *Event) {
 	// Client Registration
 	case "client.connect":
 		{
+			// Clear enabled caps and initiate negotiation.
+			client.mutex.Lock()
+			for key := range client.capEnabled {
+				delete(client.capEnabled, key)
+			}
+			client.mutex.Unlock()
 			client.Send("CAP LS 302")
 
+			// Send server password if configured.
 			if client.config.Password != "" {
 				client.Sendf("PASS :%s", client.config.Password)
 			}
 
+			// Reuse nick or get from config
 			nick := client.config.Nick
 			client.mutex.RLock()
 			if client.nick != "" {
 				nick = client.nick
 			}
 			client.mutex.RUnlock()
-			client.Sendf("NICK %s", nick)
 
+			// Start registration.
+			client.Sendf("NICK %s", nick)
 			client.Sendf("USER %s 8 * :%s", client.config.User, client.config.RealName)
 		}
 
@@ -866,7 +883,7 @@ func (client *Client) handleEvent(event *Event) {
 				{
 					for _, token := range capTokens {
 						client.mutex.Lock()
-						if client.capEnabled[token] {
+						if !client.capEnabled[token] {
 							client.capEnabled[token] = true
 						}
 						client.mutex.Unlock()

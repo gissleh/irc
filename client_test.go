@@ -3,6 +3,7 @@ package irc_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"git.aiterp.net/gisle/irc"
@@ -10,6 +11,7 @@ import (
 	"git.aiterp.net/gisle/irc/internal/irctest"
 )
 
+// Integration test below, brace yourself.
 func TestClient(t *testing.T) {
 	irc.Handle(handlers.Input)
 	irc.Handle(handlers.MRoleplay)
@@ -33,10 +35,26 @@ func TestClient(t *testing.T) {
 			{Kind: 'C', Data: "CAP LS 302"},
 			{Kind: 'C', Data: "NICK Test"},
 			{Kind: 'C', Data: "USER Tester 8 * :..."},
-			{Kind: 'S', Data: ":testserver.example.com CAP * LS :multi-prefix userhost-in-names"},
-			{Kind: 'C', Data: "CAP REQ :multi-prefix userhost-in-names"},
+			{Kind: 'S', Data: ":testserver.example.com CAP * LS :multi-prefix chghost userhost-in-names vendorname/custom-stuff echo-message =malformed vendorname/advanced-custom-stuff=things,and,items"},
+			{Kind: 'C', Data: "CAP REQ :multi-prefix chghost userhost-in-names"},
 			{Kind: 'S', Data: ":testserver.example.com CAP * ACK :multi-prefix userhost-in-names"},
 			{Kind: 'C', Data: "CAP END"},
+			{Callback: func() error {
+				if !client.CapEnabled("multi-prefix") {
+					return errors.New("multi-prefix cap should be enabled.")
+				}
+				if !client.CapEnabled("userhost-in-names") {
+					return errors.New("userhost-in-names cap should be enabled.")
+				}
+				if client.CapEnabled("echo-message") {
+					return errors.New("echo-message cap should not be enabled.")
+				}
+				if client.CapEnabled("") {
+					return errors.New("(blank) cap should be enabled.")
+				}
+
+				return nil
+			}},
 			{Kind: 'S', Data: ":testserver.example.com 433 * Test :Nick is not available"},
 			{Kind: 'C', Data: "NICK Test2"},
 			{Kind: 'S', Data: ":testserver.example.com 433 * Test2 :Nick is not available"},
@@ -59,7 +77,6 @@ func TestClient(t *testing.T) {
 			{Kind: 'S', Data: ":testserver.example.com 265 Test768 2 2 :Current local users 2, max 2"},
 			{Kind: 'S', Data: ":testserver.example.com 266 Test768 2 2 :Current global users 2, max 2"},
 			{Kind: 'S', Data: ":testserver.example.com 250 Test768 :Highest connection count: 2 (2 clients) (8 connections received)"},
-			{Kind: 'S', Data: ":testserver.example.com 352 Test768 * ~Tester testclient.example.com testserver.example.com Test768 H :0 ..."},
 			{Kind: 'S', Data: ":testserver.example.com 375 Test768 :- testserver.example.com Message of the Day - "},
 			{Kind: 'S', Data: ":testserver.example.com 372 Test768 :- This server is only for testing irce, not chatting. If you happen"},
 			{Kind: 'S', Data: ":testserver.example.com 372 Test768 :- to connect to it by accident, please disconnect immediately."},
@@ -67,7 +84,31 @@ func TestClient(t *testing.T) {
 			{Kind: 'S', Data: ":testserver.example.com 372 Test768 :-  - #Test  :: Test Channel"},
 			{Kind: 'S', Data: ":testserver.example.com 372 Test768 :-  - #Test2 :: Other Test Channel"},
 			{Kind: 'S', Data: ":testserver.example.com 376 Test768 :End of /MOTD command."},
+			{Kind: 'S', Data: ":testserver.example.com 352 Test768 * ~Tester testclient.example.com testserver.example.com Test768 H :0 ..."},
 			{Kind: 'S', Data: ":Test768 MODE Test768 :+i"},
+			{Kind: 'S', Data: "PING :testserver.example.com"}, // Ping/Pong to sync.
+			{Kind: 'C', Data: "PONG :testserver.example.com"},
+			{Callback: func() error {
+				if client.Nick() != "Test768" {
+					return errors.New("client.Nick shouldn't be " + client.Nick())
+				}
+				if client.User() != "~Tester" {
+					return errors.New("client.User shouldn't be " + client.User())
+				}
+				if client.Host() != "testclient.example.com" {
+					return errors.New("client.Host shouldn't be " + client.Host())
+				}
+
+				return nil
+			}},
+			{Callback: func() error {
+				err := client.Join("#Test")
+				if err != nil {
+					return fmt.Errorf("Failed to join #Test: %s", err)
+				}
+
+				return nil
+			}},
 			{Kind: 'C', Data: "JOIN #Test"},
 			{Kind: 'S', Data: ":Test768!~test@127.0.0.1 JOIN #Test *"},
 			{Kind: 'S', Data: ":testserver.example.com 353 Test768 = #Test :Test768!~test@127.0.0.1 @+Gisle!gisle@gisle.me"},
@@ -75,6 +116,7 @@ func TestClient(t *testing.T) {
 			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 MODE #Test +osv Test768 Test768"},
 			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 MODE #Test +N-s "},
 			{Kind: 'S', Data: ":Test1234!~test2@172.17.37.1 JOIN #Test Test1234"},
+			{Kind: 'S', Data: ":Test4321!~test2@172.17.37.1 JOIN #Test Test1234"},
 			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 MODE #Test +v Test1234"},
 			{Kind: 'S', Data: "PING :testserver.example.com"}, // Ping/Pong to sync.
 			{Kind: 'C', Data: "PONG :testserver.example.com"},
@@ -84,7 +126,7 @@ func TestClient(t *testing.T) {
 					return errors.New("Channel #Test not found")
 				}
 
-				err := irctest.AssertUserlist(t, channel, "@Gisle", "@Test768", "+Test1234")
+				err := irctest.AssertUserlist(t, channel, "@Gisle", "@Test768", "+Test1234", "Test4321")
 				if err != nil {
 					return err
 				}
@@ -103,6 +145,8 @@ func TestClient(t *testing.T) {
 			{Kind: 'S', Data: ":Hunter2!~test2@172.17.37.1 AWAY :Doing stuff"},
 			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 AWAY"},
 			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 PART #Test :Leaving the channel"},
+			{Kind: 'S', Data: ":Hunter2!~test2@172.17.37.1 CHGHOST test2 some.awesome.virtual.host"},
+			{Kind: 'S', Data: "@account=Hunter2 :Test4321!~test2@172.17.37.1 PRIVMSG #Test :Hello World."},
 			{Kind: 'S', Data: "PING :testserver.example.com"}, // Ping/Pong to sync.
 			{Kind: 'C', Data: "PONG :testserver.example.com"},
 			{Callback: func() error {
@@ -111,7 +155,7 @@ func TestClient(t *testing.T) {
 					return errors.New("Channel #Test not found")
 				}
 
-				err := irctest.AssertUserlist(t, channel, "@Test768", "+Hunter2")
+				err := irctest.AssertUserlist(t, channel, "@Test768", "+Hunter2", "Test4321")
 				if err != nil {
 					return err
 				}
@@ -133,6 +177,9 @@ func TestClient(t *testing.T) {
 				}
 				if userHunter2.Away != "Doing stuff" {
 					return errors.New("Hunter2 has the wrong away message: " + userHunter2.Away)
+				}
+				if userHunter2.Host != "some.awesome.virtual.host" {
+					return errors.New("Hunter2 should have changed the host: " + userHunter2.Host)
 				}
 
 				return nil
@@ -204,6 +251,27 @@ func TestClient(t *testing.T) {
 			{Kind: 'C', Data: "NPCA #Test Test_NPC :stuffs things"},
 			{Kind: 'S', Data: ":Test768!~test@127.0.0.1 MODE #Test +N"},
 			{Kind: 'S', Data: ":\x1FTest_NPC\x1F!Test768@npc.fakeuser.invalid PRIVMSG #Test :\x01ACTION stuffs things\x01"},
+			{Callback: func() error {
+				channel := client.Channel("#Test")
+				if channel == nil {
+					return errors.New("Channel #Test not found")
+				}
+
+				client.Describef(channel.Name(), "does stuff with %d things", 42)
+				client.Sayf(channel.Name(), "Hello, %s", "World")
+				return nil
+			}},
+			{Kind: 'C', Data: "PRIVMSG #Test :\x01ACTION does stuff with 42 things\x01"},
+			{Kind: 'C', Data: "PRIVMSG #Test :Hello, World"},
+			{Callback: func() error {
+				err := client.Part("#Test")
+				if err != nil {
+					return fmt.Errorf("Failed to part #Test: %s", err)
+				}
+
+				return nil
+			}},
+			{Kind: 'C', Data: "PART #Test"},
 		},
 	}
 
@@ -212,11 +280,9 @@ func TestClient(t *testing.T) {
 		t.Fatal("Listen:", err)
 	}
 
-	irc.Handle(func(event *irc.Event, client *irc.Client) {
-		if event.Name() == "packet.376" {
-			client.SendQueued("JOIN #Test")
-		}
-	})
+	if err := client.Disconnect(); err != irc.ErrNoConnection {
+		t.Errorf("It should fail to disconnect, got: %s", err)
+	}
 
 	err = client.Connect(addr, false)
 	if err != nil {
@@ -236,16 +302,6 @@ func TestClient(t *testing.T) {
 			t.Error("Line.Kind:", interaction.Lines[fail.Index].Kind)
 			t.Error("Line.Data:", interaction.Lines[fail.Index].Data)
 		}
-	}
-
-	if client.Nick() != "Test768" {
-		t.Errorf("Nick: %#+v != %#+v (Expectation)", client.Nick(), "Test768")
-	}
-	if client.User() != "~Tester" {
-		t.Errorf("User: %#+v != %#+v (Expectation)", client.User(), "~Tester")
-	}
-	if client.Host() != "testclient.example.com" {
-		t.Errorf("Host: %#+v != %#+v (Expectation)", client.Host(), "testclient.example.com")
 	}
 
 	for i, logLine := range interaction.Log {
