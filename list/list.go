@@ -63,7 +63,22 @@ func (list *List) InsertFromNamesToken(namestoken string) (ok bool) {
 		}
 	}
 
-	return list.Insert(user)
+	ok = list.Insert(user)
+	if !ok {
+		// Patch the user's modes and prefixes since this is up to date information.
+		list.mutex.Lock()
+		for _, existing := range list.users {
+			if existing.Nick == user.Nick {
+				existing.Modes = user.Modes
+				existing.Prefixes = user.Prefixes
+				existing.updatePrefixedNick()
+				break
+			}
+		}
+		list.mutex.Unlock()
+	}
+
+	return ok
 }
 
 // Insert a user. Modes and prefixes will be cleaned up before insertion.
