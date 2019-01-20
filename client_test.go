@@ -299,3 +299,36 @@ func TestClient(t *testing.T) {
 		t.Logf("Log[%d] = %#+v", i, logLine)
 	}
 }
+
+// TestParenthesesBug tests that the bugfix causing `((Remove :01 goofs!*))` to be parsed as an empty message. It was
+// initially thought to be caused by the parentheses (like a hidden m_roleplay NPC attribution removal), hence the name
+// for this function.
+func TestParenthesesBug(t *testing.T) {
+	gotMessage := true
+
+	client := irc.New(context.Background(), irc.Config{
+		Nick: "Stuff",
+	})
+
+	irc.Handle(func(event *irc.Event, client *irc.Client) {
+		if event.Name() == "packet.privmsg" || event.Nick == "Dante" {
+			gotMessage = true
+
+			if event.Text != "((Remove :01 goofs!*))" {
+				t.Errorf("Expected: %#+v", "((Remove :01 goofs!*))")
+				t.Errorf("Result:   %#+v", event.Text)
+			}
+		}
+	})
+
+	packet, err := irc.ParsePacket("@example/tag=32; :Dante!TheBeans@captain.purple.beans PRIVMSG Stuff :((Remove :01 goofs!*))")
+	if err != nil {
+		t.Error("Parse", err)
+	}
+
+	client.EmitSync(context.Background(), packet)
+
+	if !gotMessage {
+		t.Error("Message was not received")
+	}
+}

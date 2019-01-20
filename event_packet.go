@@ -2,6 +2,7 @@ package irc
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -63,7 +64,7 @@ func ParsePacket(line string) (Event, error) {
 	}
 
 	// Parse body
-	split := strings.Split(line, " :")
+	split := strings.SplitN(line, " :", 2)
 	tokens := strings.Split(split[0], " ")
 
 	if len(split) == 2 {
@@ -72,6 +73,8 @@ func ParsePacket(line string) (Event, error) {
 
 	event.verb = tokens[0]
 	event.Args = tokens[1:]
+
+	fmt.Printf("%#+v\n", split)
 
 	// Parse CTCP
 	if (event.verb == "PRIVMSG" || event.verb == "NOTICE") && strings.HasPrefix(event.Text, "\x01") {
