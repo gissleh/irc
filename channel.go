@@ -55,6 +55,10 @@ func (channel *Channel) Handle(event *Event, client *Client) {
 		{
 			channel.userlist.Remove(event.Nick)
 		}
+	case "packet.kick":
+		{
+			channel.userlist.Remove(event.Arg(1))
+		}
 	case "packet.nick":
 		{
 			channel.userlist.Rename(event.Nick, event.Arg(0))

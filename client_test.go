@@ -105,9 +105,18 @@ func TestClient(t *testing.T) {
 				return nil
 			}},
 			{Kind: 'C', Data: "JOIN #Test"},
-			{Kind: 'S', Data: ":Test768!~test@127.0.0.1 JOIN #Test *"},
-			{Kind: 'S', Data: ":testserver.example.com 353 Test768 = #Test :Test768!~test@127.0.0.1 @+Gisle!gisle@gisle.me"},
+			{Kind: 'S', Data: ":Test768!~Tester@127.0.0.1 JOIN #Test *"},
+			{Kind: 'S', Data: ":testserver.example.com 353 Test768 = #Test :Test768!~Tester@127.0.0.1 @+Gisle!irce@10.32.0.1"},
 			{Kind: 'S', Data: ":testserver.example.com 366 Test768 #Test :End of /NAMES list."},
+			{Kind: 'S', Data: "PING :testserver.example.com"}, // Ping/Pong to sync.
+			{Kind: 'C', Data: "PONG :testserver.example.com"},
+			{Callback: func() error {
+				if client.Channel("#Test") == nil {
+					return errors.New("Channel #Test not found")
+				}
+
+				return nil
+			}},
 			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 MODE #Test +osv Test768 Test768"},
 			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 MODE #Test +N-s "},
 			{Kind: 'S', Data: ":Test1234!~test2@172.17.37.1 JOIN #Test Test1234"},
@@ -228,10 +237,10 @@ func TestClient(t *testing.T) {
 			{Kind: 'C', Data: "PRIVMSG #Test :\x01ACTION describes stuff\x01"},
 			{Kind: 'C', Data: "PRIVMSG #Test :Hello, World"},
 			{Kind: 'C', Data: "PRIVMSG #Test :Hello again"},
-			{Kind: 'S', Data: ":Test768!~test@127.0.0.1 PRIVMSG #Test :\x01ACTION does stuff\x01"},
-			{Kind: 'S', Data: ":Test768!~test@127.0.0.1 PRIVMSG #Test :\x01ACTION describes stuff\x01"},
-			{Kind: 'S', Data: ":Test768!~test@127.0.0.1 PRIVMSG #Test :Hello, World"},
-			{Kind: 'S', Data: ":Test768!~test@127.0.0.1 PRIVMSG #Test :Hello again"},
+			{Kind: 'S', Data: ":Test768!~Tester@127.0.0.1 PRIVMSG #Test :\x01ACTION does stuff\x01"},
+			{Kind: 'S', Data: ":Test768!~Tester@127.0.0.1 PRIVMSG #Test :\x01ACTION describes stuff\x01"},
+			{Kind: 'S', Data: ":Test768!~Tester@127.0.0.1 PRIVMSG #Test :Hello, World"},
+			{Kind: 'S', Data: ":Test768!~Tester@127.0.0.1 PRIVMSG #Test :Hello again"},
 			{Callback: func() error {
 				channel := client.Channel("#Test")
 				if channel == nil {
@@ -244,7 +253,7 @@ func TestClient(t *testing.T) {
 			}},
 			{Kind: 'C', Data: "MODE #Test +N"},
 			{Kind: 'C', Data: "NPCA #Test Test_NPC :stuffs things"},
-			{Kind: 'S', Data: ":Test768!~test@127.0.0.1 MODE #Test +N"},
+			{Kind: 'S', Data: ":Test768!~Tester@127.0.0.1 MODE #Test +N"},
 			{Kind: 'S', Data: ":\x1FTest_NPC\x1F!Test768@npc.fakeuser.invalid PRIVMSG #Test :\x01ACTION stuffs things\x01"},
 			{Callback: func() error {
 				channel := client.Channel("#Test")
@@ -263,6 +272,55 @@ func TestClient(t *testing.T) {
 				return nil
 			}},
 			{Kind: 'C', Data: "PART #Test"},
+			{Kind: 'S', Data: ":Test768!~Tester@127.0.0.1 PART #Test"},
+			{Kind: 'S', Data: "PING :testserver.example.com"}, // Ping/Pong to sync.
+			{Kind: 'C', Data: "PONG :testserver.example.com"},
+			{Callback: func() error {
+				if client.Channel("#Test") != nil {
+					return errors.New("#Test is still there.")
+				}
+
+				return nil
+			}},
+			{Callback: func() error {
+				client.Join("#Test2")
+				return nil
+			}},
+			{Kind: 'C', Data: "JOIN #Test2"},
+			{Kind: 'S', Data: ":Test768!~Tester@127.0.0.1 JOIN #Test2 *"},
+			{Kind: 'S', Data: ":testserver.example.com 353 Test768 = #Test2 :Test768!~Tester@127.0.0.1 +DoomedUser!doom@example.com @+ZealousMod!zeal@example.com"},
+			{Kind: 'S', Data: ":testserver.example.com 366 Test768 #Test2 :End of /NAMES list."},
+			{Kind: 'S', Data: "PING :testserver.example.com"}, // Ping/Pong to sync.
+			{Kind: 'C', Data: "PONG :testserver.example.com"},
+			{Callback: func() error {
+				channel := client.Channel("#Test2")
+				if channel == nil {
+					return errors.New("Channel #Test2 not found")
+				}
+
+				return irctest.AssertUserlist(t, channel, "@ZealousMod", "+DoomedUser", "Test768")
+			}},
+			{Kind: 'S', Data: ":ZealousMod!zeal@example.com KICK #Test2 DoomedUser :Kickety kick"},
+			{Kind: 'S', Data: "PING :testserver.example.com sync"}, // Ping/Pong to sync.
+			{Kind: 'C', Data: "PONG :testserver.example.com sync"},
+			{Callback: func() error {
+				channel := client.Channel("#Test2")
+				if channel == nil {
+					return errors.New("Channel #Test2 not found")
+				}
+
+				return irctest.AssertUserlist(t, channel, "@ZealousMod", "Test768")
+			}},
+			{Kind: 'S', Data: ":ZealousMod!zeal@example.com KICK #Test2 Test768 :Kickety kick"},
+			{Kind: 'S', Data: "PING :testserver.example.com sync"}, // Ping/Pong to sync.
+			{Kind: 'C', Data: "PONG :testserver.example.com sync"},
+			{Callback: func() error {
+				if client.Channel("#Test2") != nil {
+					return errors.New("#Test2 is still there.")
+				}
+
+				return nil
+			}},
 		},
 	}
 

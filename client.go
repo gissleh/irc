@@ -992,10 +992,6 @@ func (client *Client) handleEvent(event *Event) {
 			}
 
 			client.handleInTarget(channel, event)
-
-			if channel != nil {
-				channel.Handle(event, client)
-			}
 		}
 
 	case "packet.part":
@@ -1005,9 +1001,21 @@ func (client *Client) handleEvent(event *Event) {
 				break
 			}
 
-			channel.Handle(event, client)
-
 			if event.Nick == client.nick {
+				client.RemoveTarget(channel)
+			} else {
+				client.handleInTarget(channel, event)
+			}
+		}
+
+	case "packet.kick":
+		{
+			channel := client.Channel(event.Arg(0))
+			if channel == nil {
+				break
+			}
+
+			if event.Arg(1) == client.nick {
 				client.RemoveTarget(channel)
 			} else {
 				client.handleInTarget(channel, event)
@@ -1216,6 +1224,10 @@ func (client *Client) handleInTargets(nick string, event *Event) {
 }
 
 func (client *Client) handleInTarget(target Target, event *Event) {
+	if target == nil {
+		return
+	}
+
 	client.mutex.RLock()
 
 	target.Handle(event, client)
