@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"git.aiterp.net/gisle/irc/ircutil"
+	"github.com/gissleh/irc/ircutil"
 )
 
 func TestCuts(t *testing.T) {

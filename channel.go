@@ -3,7 +3,7 @@ package irc
 import (
 	"strings"
 
-	"git.aiterp.net/gisle/irc/list"
+	"github.com/gissleh/irc/list"
 )
 
 // A Channel is a target that manages the userlist
@@ -23,6 +23,14 @@ func (channel *Channel) Name() string {
 	return channel.name
 }
 
+func (channel *Channel) State() TargetState {
+	return TargetState{
+		Kind:  "channel",
+		Name:  channel.name,
+		Users: channel.userlist.Users(),
+	}
+}
+
 // UserList gets the channel userlist
 func (channel *Channel) UserList() list.Immutable {
 	return channel.userlist.Immutable()
@@ -33,7 +41,7 @@ func (channel *Channel) Parted() bool {
 	return channel.parted
 }
 
-// Handle handles messages routed to this channel by the client's event loop
+// AddHandler handles messages routed to this channel by the client's event loop
 func (channel *Channel) Handle(event *Event, client *Client) {
 	switch event.Name() {
 	case "packet.join":

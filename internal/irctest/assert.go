@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"git.aiterp.net/gisle/irc"
+	"github.com/gissleh/irc"
 )
 
 // AssertUserlist compares the userlist to a list of prefixed nicks

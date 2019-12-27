@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"git.aiterp.net/gisle/irc/isupport"
+	"github.com/gissleh/irc/isupport"
 )
 
 // The List of users in a channel. It has all operations one would perform on

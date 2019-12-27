@@ -1,7 +1,7 @@
 package irc
 
 import (
-	"git.aiterp.net/gisle/irc/list"
+	"github.com/gissleh/irc/list"
 )
 
 // A Query is a target for direct messages to and from a specific nick.
@@ -19,7 +19,15 @@ func (query *Query) Name() string {
 	return query.user.Nick
 }
 
-// Handle handles messages routed to this channel by the client's event loop
+func (query *Query) State() TargetState {
+	return TargetState{
+		Kind:  "query",
+		Name:  query.user.Nick,
+		Users: []list.User{query.user},
+	}
+}
+
+// AddHandler handles messages routed to this channel by the client's event loop
 func (query *Query) Handle(event *Event, client *Client) {
 	switch event.Name() {
 	case "packet.nick":

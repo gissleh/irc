@@ -1,8 +1,9 @@
 package handlers
 
 import (
-	"git.aiterp.net/gisle/irc"
-	"git.aiterp.net/gisle/irc/ircutil"
+	"github.com/gissleh/irc"
+	"github.com/gissleh/irc/ircutil"
+	"time"
 )
 
 // Input handles the default input.
@@ -70,6 +71,18 @@ func Input(event *irc.Event, client *irc.Client) {
 			cuts := ircutil.CutMessage(event.Text, overhead)
 			for _, cut := range cuts {
 				client.SendCTCP("ACTION", target.Name(), false, cut)
+
+				if !client.CapEnabled("echo-message") {
+					event := irc.NewEvent("echo", "action")
+					event.Time = time.Now()
+					event.Nick = client.Nick()
+					event.User = client.User()
+					event.Host = client.Host()
+					event.Args = []string{target.Name()}
+					event.Text = cut
+
+					client.EmitNonBlocking(event)
+				}
 			}
 		}
 
@@ -88,6 +101,18 @@ func Input(event *irc.Event, client *irc.Client) {
 			cuts := ircutil.CutMessage(text, overhead)
 			for _, cut := range cuts {
 				client.SendCTCP("ACTION", targetName, false, cut)
+
+				if !client.CapEnabled("echo-message") {
+					event := irc.NewEvent("echo", "action")
+					event.Time = time.Now()
+					event.Nick = client.Nick()
+					event.User = client.User()
+					event.Host = client.Host()
+					event.Args = []string{targetName}
+					event.Text = cut
+
+					client.EmitNonBlocking(event)
+				}
 			}
 		}
 

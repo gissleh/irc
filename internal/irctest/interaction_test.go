@@ -4,15 +4,15 @@ import (
 	"net"
 	"testing"
 
-	"git.aiterp.net/gisle/irc/internal/irctest"
+	"github.com/gissleh/irc/internal/irctest"
 )
 
 func TestInteraction(t *testing.T) {
 	interaction := irctest.Interaction{
 		Lines: []irctest.InteractionLine{
-			{Kind: 'C', Data: "FIRST MESSAGE"},
-			{Kind: 'S', Data: "SERVER MESSAGE"},
-			{Kind: 'C', Data: "SECOND MESSAGE"},
+			{Client: "FIRST MESSAGE"},
+			{Server: "SERVER MESSAGE"},
+			{Client: "SECOND MESSAGE"},
 		},
 	}
 

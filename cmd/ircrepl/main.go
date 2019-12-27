@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/gissleh/irc/handlers"
+	"log"
 	"os"
 	"strings"
 
-	"git.aiterp.net/gisle/irc"
+	"github.com/gissleh/irc"
 )
 
 var flagNick = flag.String("nick", "Test", "The client nick")
@@ -25,6 +27,9 @@ func main() {
 
 	flag.Parse()
 
+	irc.AddHandler(handlers.Input)
+	irc.AddHandler(handlers.MRoleplay)
+
 	client := irc.New(ctx, irc.Config{
 		Nick:         *flagNick,
 		User:         *flagUser,
@@ -37,13 +42,49 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Failed to connect: %s", err)
 	}
 
-	irc.Handle(func(event *irc.Event, client *irc.Client) {
-		json, err := json.MarshalIndent(event, "", "    ")
+	var target irc.Target
+	irc.AddHandler(func(event *irc.Event, client *irc.Client) {
+		if event.Name() == "input.target" {
+			name := event.Arg(0)
+
+			if client.ISupport().IsChannel(name) {
+				log.Println("Set target channel", name)
+				target = client.Channel(name)
+			} else if len(name) > 0 {
+				log.Println("Set target query", name)
+				target = client.Query(name)
+			} else {
+				log.Println("Set target status")
+				target = client.Status()
+			}
+
+			if target == nil {
+				log.Println("Target does not exist, set to status")
+				target = client.Status()
+			}
+
+			event.PreventDefault()
+			return
+		}
+
+		if event.Name() == "input.clientstatus" {
+			j, err := json.MarshalIndent(client.State(), "", "    ")
+			if err != nil {
+				return
+			}
+
+			fmt.Println(string(j))
+
+			event.PreventDefault()
+			return
+		}
+
+		j, err := json.MarshalIndent(event, "", "    ")
 		if err != nil {
 			return
 		}
 
-		fmt.Println(string(json))
+		fmt.Println(string(j))
 	})
 
 	reader := bufio.NewReader(os.Stdin)
@@ -53,6 +94,6 @@ func main() {
 			break
 		}
 
-		client.EmitInput(string(line[:len(line)-1]), client.Status())
+		client.EmitInput(string(line[:len(line)-1]), target)
 	}
 }

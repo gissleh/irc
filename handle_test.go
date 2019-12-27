@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"git.aiterp.net/gisle/irc"
+	"github.com/gissleh/irc"
 )
 
 func TestHandle(t *testing.T) {
@@ -18,7 +18,7 @@ func TestHandle(t *testing.T) {
 	event := irc.NewEvent("test", eventName)
 	handled := false
 
-	irc.Handle(func(event *irc.Event, client *irc.Client) {
+	irc.AddHandler(func(event *irc.Event, client *irc.Client) {
 		t.Log("Got:", event.Kind(), event.Verb())
 
 		if event.Kind() == "test" && event.Verb() == eventName {

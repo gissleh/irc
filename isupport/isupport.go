@@ -12,20 +12,15 @@ import (
 // of it. It's thread-safe through a reader/writer lock, so the locks will
 // only block in the short duration post-registration when the 005s come in
 type ISupport struct {
-	lock sync.RWMutex
-	raw  map[string]string
-
-	prefixes    map[rune]rune
-	modeOrder   string
-	prefixOrder string
-	chanModes   []string
+	lock  sync.RWMutex
+	state State
 }
 
 // Get gets an isupport key. This is unprocessed data, and a helper should
 // be used if available.
 func (isupport *ISupport) Get(key string) (value string, ok bool) {
 	isupport.lock.RLock()
-	value, ok = isupport.raw[key]
+	value, ok = isupport.state.Raw[key]
 	isupport.lock.RUnlock()
 	return
 }
@@ -33,7 +28,7 @@ func (isupport *ISupport) Get(key string) (value string, ok bool) {
 // Number gets a key and converts it to a number.
 func (isupport *ISupport) Number(key string) (value int, ok bool) {
 	isupport.lock.RLock()
-	strValue, ok := isupport.raw[key]
+	strValue, ok := isupport.state.Raw[key]
 	isupport.lock.RUnlock()
 
 	if !ok {
@@ -54,12 +49,12 @@ func (isupport *ISupport) ParsePrefixedNick(fullnick string) (nick, modes, prefi
 	isupport.lock.RLock()
 	defer isupport.lock.RUnlock()
 
-	if fullnick == "" || isupport.prefixes == nil {
+	if fullnick == "" || isupport.state.Prefixes == nil {
 		return fullnick, "", ""
 	}
 
 	for i, ch := range fullnick {
-		if mode, ok := isupport.prefixes[ch]; ok {
+		if mode, ok := isupport.state.Prefixes[ch]; ok {
 			modes += string(mode)
 			prefixes += string(ch)
 		} else {
@@ -80,7 +75,7 @@ func (isupport *ISupport) HighestPrefix(prefixes string) rune {
 		return rune(prefixes[0])
 	}
 
-	for _, prefix := range isupport.prefixOrder {
+	for _, prefix := range isupport.state.PrefixOrder {
 		if strings.ContainsRune(prefixes, prefix) {
 			return prefix
 		}
@@ -98,7 +93,7 @@ func (isupport *ISupport) HighestMode(modes string) rune {
 		return rune(modes[0])
 	}
 
-	for _, mode := range isupport.modeOrder {
+	for _, mode := range isupport.state.ModeOrder {
 		if strings.ContainsRune(modes, mode) {
 			return mode
 		}
@@ -122,7 +117,7 @@ func (isupport *ISupport) IsModeHigher(current rune, other rune) bool {
 		return true
 	}
 
-	for _, mode := range isupport.modeOrder {
+	for _, mode := range isupport.state.ModeOrder {
 		if mode == current {
 			return true
 		} else if mode == other {
@@ -137,7 +132,7 @@ func (isupport *ISupport) IsModeHigher(current rune, other rune) bool {
 func (isupport *ISupport) SortModes(modes string) string {
 	result := ""
 
-	for _, ch := range isupport.modeOrder {
+	for _, ch := range isupport.state.ModeOrder {
 		for _, ch2 := range modes {
 			if ch2 == ch {
 				result += string(ch)
@@ -152,7 +147,7 @@ func (isupport *ISupport) SortModes(modes string) string {
 func (isupport *ISupport) SortPrefixes(prefixes string) string {
 	result := ""
 
-	for _, ch := range isupport.prefixOrder {
+	for _, ch := range isupport.state.PrefixOrder {
 		for _, ch2 := range prefixes {
 			if ch2 == ch {
 				result += string(ch)
@@ -168,7 +163,7 @@ func (isupport *ISupport) Mode(prefix rune) rune {
 	isupport.lock.RLock()
 	defer isupport.lock.RUnlock()
 
-	return isupport.prefixes[prefix]
+	return isupport.state.Prefixes[prefix]
 }
 
 // Prefix gets the prefix for the mode. It's a bit slower
@@ -178,7 +173,7 @@ func (isupport *ISupport) Prefix(mode rune) rune {
 	isupport.lock.RLock()
 	defer isupport.lock.RUnlock()
 
-	for prefix, mappedMode := range isupport.prefixes {
+	for prefix, mappedMode := range isupport.state.Prefixes {
 		if mappedMode == mode {
 			return prefix
 		}
@@ -207,7 +202,7 @@ func (isupport *ISupport) IsChannel(targetName string) bool {
 	isupport.lock.RLock()
 	defer isupport.lock.RUnlock()
 
-	return strings.Contains(isupport.raw["CHANTYPES"], string(targetName[0]))
+	return strings.Contains(isupport.state.Raw["CHANTYPES"], string(targetName[0]))
 }
 
 // IsPermissionMode returns whether the flag is a permission mode
@@ -215,7 +210,7 @@ func (isupport *ISupport) IsPermissionMode(flag rune) bool {
 	isupport.lock.RLock()
 	defer isupport.lock.RUnlock()
 
-	return strings.ContainsRune(isupport.modeOrder, flag)
+	return strings.ContainsRune(isupport.state.ModeOrder, flag)
 }
 
 // ModeTakesArgument returns true if the mode takes an argument
@@ -224,17 +219,17 @@ func (isupport *ISupport) ModeTakesArgument(flag rune, plus bool) bool {
 	defer isupport.lock.RUnlock()
 
 	// Permission modes always take an argument.
-	if strings.ContainsRune(isupport.modeOrder, flag) {
+	if strings.ContainsRune(isupport.state.ModeOrder, flag) {
 		return true
 	}
 
 	// Modes in category A and B always takes an argument
-	if strings.ContainsRune(isupport.chanModes[0], flag) || strings.ContainsRune(isupport.chanModes[1], flag) {
+	if strings.ContainsRune(isupport.state.ChannelModes[0], flag) || strings.ContainsRune(isupport.state.ChannelModes[1], flag) {
 		return true
 	}
 
 	// Modes in category C only takes one when added
-	if plus && strings.ContainsRune(isupport.chanModes[1], flag) {
+	if plus && strings.ContainsRune(isupport.state.ChannelModes[1], flag) {
 		return true
 	}
 
@@ -251,11 +246,11 @@ func (isupport *ISupport) ChannelModeType(mode rune) int {
 
 	// User permission modes function exactly like the first block
 	// when it comes to add/remove
-	if strings.ContainsRune(isupport.modeOrder, mode) {
+	if strings.ContainsRune(isupport.state.ModeOrder, mode) {
 		return 0
 	}
 
-	for i, block := range isupport.chanModes {
+	for i, block := range isupport.state.ChannelModes {
 		if strings.ContainsRune(block, mode) {
 			return i
 		}
@@ -272,43 +267,48 @@ func (isupport *ISupport) Set(key, value string) {
 
 	isupport.lock.Lock()
 
-	if isupport.raw == nil {
-		isupport.raw = make(map[string]string, 32)
+	if isupport.state.Raw == nil {
+		isupport.state.Raw = make(map[string]string, 32)
 	}
 
-	isupport.raw[key] = value
+	isupport.state.Raw[key] = value
 
 	switch key {
 	case "PREFIX": // PREFIX=(ov)@+
 		{
 			split := strings.SplitN(value[1:], ")", 2)
 
-			isupport.prefixOrder = split[1]
-			isupport.modeOrder = split[0]
-			isupport.prefixes = make(map[rune]rune, len(split[0]))
+			isupport.state.PrefixOrder = split[1]
+			isupport.state.ModeOrder = split[0]
+			isupport.state.Prefixes = make(map[rune]rune, len(split[0]))
 			for i, ch := range split[0] {
-				isupport.prefixes[rune(split[1][i])] = ch
+				isupport.state.Prefixes[rune(split[1][i])] = ch
 			}
 		}
 	case "CHANMODES": // CHANMODES=eIbq,k,flj,CFLNPQcgimnprstz
 		{
-			isupport.chanModes = strings.Split(value, ",")
+			isupport.state.ChannelModes = strings.Split(value, ",")
 		}
 	}
 
 	isupport.lock.Unlock()
 }
 
+// State gets a copy of the isupport state.
+func (isupport *ISupport) State() *State {
+	return isupport.state.Copy()
+}
+
 // Reset clears everything.
 func (isupport *ISupport) Reset() {
 	isupport.lock.Lock()
-	isupport.prefixOrder = ""
-	isupport.modeOrder = ""
-	isupport.prefixes = nil
-	isupport.chanModes = nil
+	isupport.state.PrefixOrder = ""
+	isupport.state.ModeOrder = ""
+	isupport.state.Prefixes = nil
+	isupport.state.ChannelModes = nil
 
-	for key := range isupport.raw {
-		delete(isupport.raw, key)
+	for key := range isupport.state.Raw {
+		delete(isupport.state.Raw, key)
 	}
 	isupport.lock.Unlock()
 }

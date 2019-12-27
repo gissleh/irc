@@ -3,8 +3,8 @@ package handlers
 import (
 	"strings"
 
-	"git.aiterp.net/gisle/irc"
-	"git.aiterp.net/gisle/irc/ircutil"
+	"github.com/gissleh/irc"
+	"github.com/gissleh/irc/ircutil"
 )
 
 // MRoleplay is a handler that adds commands for cutting NPC commands, as well as cleaning up

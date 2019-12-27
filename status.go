@@ -14,7 +14,15 @@ func (status *Status) Name() string {
 	return "Status"
 }
 
-// Handle handles messages routed to this status by the client's event loop
+func (status *Status) State() TargetState {
+	return TargetState{
+		Kind:  "status",
+		Name:  "Status",
+		Users: nil,
+	}
+}
+
+// AddHandler handles messages routed to this status by the client's event loop
 func (status *Status) Handle(event *Event, client *Client) {
 
 }

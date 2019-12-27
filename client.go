@@ -11,14 +11,15 @@ import (
 	"fmt"
 	mathRand "math/rand"
 	"net"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"git.aiterp.net/gisle/irc/ircutil"
-	"git.aiterp.net/gisle/irc/isupport"
-	"git.aiterp.net/gisle/irc/list"
+	"github.com/gissleh/irc/ircutil"
+	"github.com/gissleh/irc/isupport"
+	"github.com/gissleh/irc/list"
 )
 
 var supportedCaps = []string{
@@ -31,6 +32,7 @@ var supportedCaps = []string{
 	"extended-join",
 	"chghost",
 	"account-tag",
+	"echo-message",
 }
 
 // ErrNoConnection is returned if you try to do something requiring a connection,
@@ -82,7 +84,7 @@ type Client struct {
 
 	status    *Status
 	targets   []Target
-	targteIds map[Target]string
+	targetIds map[Target]string
 }
 
 // New creates a new client. The context can be context.Background if you want manually to
@@ -96,7 +98,7 @@ func New(ctx context.Context, config Config) *Client {
 		capEnabled: make(map[string]bool),
 		capData:    make(map[string]string),
 		config:     config.WithDefaults(),
-		targteIds:  make(map[Target]string, 16),
+		targetIds:  make(map[Target]string, 16),
 		status:     &Status{},
 	}
 
@@ -168,6 +170,39 @@ func (client *Client) Ready() bool {
 	defer client.mutex.RUnlock()
 
 	return client.ready
+}
+
+func (client *Client) State() ClientState {
+	client.mutex.RLock()
+	state := ClientState{
+		Nick:      client.nick,
+		User:      client.user,
+		Host:      client.host,
+		Connected: client.conn != nil,
+		Ready:     client.ready,
+		ISupport:  client.isupport.State(),
+		Caps:      make([]string, 0, len(client.capEnabled)),
+		Targets:   make([]TargetState, 0, len(client.targets)),
+	}
+
+	for key, enabled := range client.capEnabled {
+		if enabled {
+			state.Caps = append(state.Caps, key)
+		}
+	}
+
+	for _, target := range client.targets {
+		tstate := target.State()
+		tstate.ID = client.targetIds[target]
+
+		state.Targets = append(state.Targets, tstate)
+	}
+
+	client.mutex.RUnlock()
+
+	sort.Strings(state.Caps)
+
+	return state
 }
 
 // Connect connects to the server by addr.
@@ -411,12 +446,12 @@ func (client *Client) EmitInput(line string, target Target) context.Context {
 	if target != nil {
 		client.mutex.RLock()
 		event.targets = append(event.targets, target)
-		event.targetIds[target] = client.targteIds[target]
+		event.targetIds[target] = client.targetIds[target]
 		client.mutex.RUnlock()
 	} else {
 		client.mutex.RLock()
 		event.targets = append(event.targets, client.status)
-		event.targetIds[client.status] = client.targteIds[client.status]
+		event.targetIds[client.status] = client.targetIds[client.status]
 		client.mutex.RUnlock()
 	}
 
@@ -576,7 +611,7 @@ func (client *Client) AddTarget(target Target) (id string, err error) {
 
 	id = generateClientID()
 	client.targets = append(client.targets, target)
-	client.targteIds[target] = id
+	client.targetIds[target] = id
 
 	return
 }
@@ -592,11 +627,11 @@ func (client *Client) RemoveTarget(target Target) (id string, err error) {
 
 	for i := range client.targets {
 		if target == client.targets[i] {
-			id = client.targteIds[target]
+			id = client.targetIds[target]
 
 			client.targets[i] = client.targets[len(client.targets)-1]
 			client.targets = client.targets[:len(client.targets)-1]
-			delete(client.targteIds, target)
+			delete(client.targetIds, target)
 
 			// Ensure the channel has been parted
 			if channel, ok := target.(*Channel); ok && !channel.parted {
@@ -828,7 +863,7 @@ func (client *Client) handleEvent(event *Event) {
 			}
 		}
 
-	// Handle ISupport
+	// AddHandler ISupport
 	case "packet.005":
 		{
 			for _, token := range event.Args[1:] {
@@ -1002,6 +1037,7 @@ func (client *Client) handleEvent(event *Event) {
 			}
 
 			if event.Nick == client.nick {
+				channel.parted = true
 				client.RemoveTarget(channel)
 			} else {
 				client.handleInTarget(channel, event)
@@ -1016,6 +1052,7 @@ func (client *Client) handleEvent(event *Event) {
 			}
 
 			if event.Arg(1) == client.nick {
+				channel.parted = true
 				client.RemoveTarget(channel)
 			} else {
 				client.handleInTarget(channel, event)
@@ -1159,7 +1196,7 @@ func (client *Client) handleEvent(event *Event) {
 					channels = append(channels, channel.Name())
 
 					rejoinEvent.targets = append(rejoinEvent.targets, target)
-					rejoinEvent.targetIds[target] = client.targteIds[target]
+					rejoinEvent.targetIds[target] = client.targetIds[target]
 				}
 			}
 			client.mutex.RUnlock()
@@ -1197,7 +1234,7 @@ func (client *Client) handleInTargets(nick string, event *Event) {
 				target.Handle(event, client)
 
 				event.targets = append(event.targets, target)
-				event.targetIds[target] = client.targteIds[target]
+				event.targetIds[target] = client.targetIds[target]
 			}
 		case *Query:
 			{
@@ -1205,7 +1242,7 @@ func (client *Client) handleInTargets(nick string, event *Event) {
 					target.Handle(event, client)
 
 					event.targets = append(event.targets, target)
-					event.targetIds[target] = client.targteIds[target]
+					event.targetIds[target] = client.targetIds[target]
 				}
 			}
 		case *Status:
@@ -1214,7 +1251,7 @@ func (client *Client) handleInTargets(nick string, event *Event) {
 					target.Handle(event, client)
 
 					event.targets = append(event.targets, target)
-					event.targetIds[target] = client.targteIds[target]
+					event.targetIds[target] = client.targetIds[target]
 				}
 			}
 		}
@@ -1233,7 +1270,7 @@ func (client *Client) handleInTarget(target Target, event *Event) {
 	target.Handle(event, client)
 
 	event.targets = append(event.targets, target)
-	event.targetIds[target] = client.targteIds[target]
+	event.targetIds[target] = client.targetIds[target]
 
 	client.mutex.RUnlock()
 }

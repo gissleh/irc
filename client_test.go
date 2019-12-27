@@ -5,15 +5,15 @@ import (
 	"errors"
 	"testing"
 
-	"git.aiterp.net/gisle/irc"
-	"git.aiterp.net/gisle/irc/handlers"
-	"git.aiterp.net/gisle/irc/internal/irctest"
+	"github.com/gissleh/irc"
+	"github.com/gissleh/irc/handlers"
+	"github.com/gissleh/irc/internal/irctest"
 )
 
 // Integration test below, brace yourself.
 func TestClient(t *testing.T) {
-	irc.Handle(handlers.Input)
-	irc.Handle(handlers.MRoleplay)
+	irc.AddHandler(handlers.Input)
+	irc.AddHandler(handlers.MRoleplay)
 
 	client := irc.New(context.Background(), irc.Config{
 		Nick:         "Test",
@@ -31,13 +31,13 @@ func TestClient(t *testing.T) {
 	interaction := irctest.Interaction{
 		Strict: false,
 		Lines: []irctest.InteractionLine{
-			{Kind: 'C', Data: "CAP LS 302"},
-			{Kind: 'C', Data: "NICK Test"},
-			{Kind: 'C', Data: "USER Tester 8 * :..."},
-			{Kind: 'S', Data: ":testserver.example.com CAP * LS :multi-prefix chghost userhost-in-names vendorname/custom-stuff echo-message =malformed vendorname/advanced-custom-stuff=things,and,items"},
-			{Kind: 'C', Data: "CAP REQ :multi-prefix chghost userhost-in-names"},
-			{Kind: 'S', Data: ":testserver.example.com CAP * ACK :multi-prefix userhost-in-names"},
-			{Kind: 'C', Data: "CAP END"},
+			{Client: "CAP LS 302"},
+			{Client: "NICK Test"},
+			{Client: "USER Tester 8 * :..."},
+			{Server: ":testserver.example.com CAP * LS :multi-prefix chghost userhost-in-names vendorname/custom-stuff echo-message =malformed vendorname/advanced-custom-stuff=things,and,items"},
+			{Client: "CAP REQ :multi-prefix chghost userhost-in-names"},
+			{Server: ":testserver.example.com CAP * ACK :multi-prefix userhost-in-names"},
+			{Client: "CAP END"},
 			{Callback: func() error {
 				if !client.CapEnabled("multi-prefix") {
 					return errors.New("multi-prefix cap should be enabled.")
@@ -54,39 +54,39 @@ func TestClient(t *testing.T) {
 
 				return nil
 			}},
-			{Kind: 'S', Data: ":testserver.example.com 433 * Test :Nick is not available"},
-			{Kind: 'C', Data: "NICK Test2"},
-			{Kind: 'S', Data: ":testserver.example.com 433 * Test2 :Nick is not available"},
-			{Kind: 'C', Data: "NICK Test3"},
-			{Kind: 'S', Data: ":testserver.example.com 433 * Test3 :Nick is not available"},
-			{Kind: 'C', Data: "NICK Test4"},
-			{Kind: 'S', Data: ":testserver.example.com 433 * Test4 :Nick is not available"},
-			{Kind: 'C', Data: "NICK Test768"},
-			{Kind: 'S', Data: ":testserver.example.com 001 Test768 :Welcome to the TestServer Internet Relay Chat Network test"},
-			{Kind: 'C', Data: "WHO Test768*"},
-			{Kind: 'S', Data: ":testserver.example.com 002 Test768 :Your host is testserver.example.com[testserver.example.com/6667], running version charybdis-4-rc3"},
-			{Kind: 'S', Data: ":testserver.example.com 003 Test768 :This server was created Fri Nov 25 2016 at 17:28:20 CET"},
-			{Kind: 'S', Data: ":testserver.example.com 004 Test768 testserver.example.com charybdis-4-rc3 DQRSZagiloswxz CFILNPQbcefgijklmnopqrstvz bkloveqjfI"},
-			{Kind: 'S', Data: ":testserver.example.com 005 Test768 FNC SAFELIST ELIST=CTU MONITOR=100 WHOX ETRACE KNOCK CHANTYPES=#& EXCEPTS INVEX CHANMODES=eIbq,k,flj,CFLNPQcgimnprstz CHANLIMIT=#&:15 :are supported by this server"},
-			{Kind: 'S', Data: ":testserver.example.com 005 Test768 PREFIX=(ov)@+ MAXLIST=bqeI:100 MODES=4 NETWORK=TestServer STATUSMSG=@+ CALLERID=g CASEMAPPING=rfc1459 NICKLEN=30 MAXNICKLEN=31 CHANNELLEN=50 TOPICLEN=390 DEAF=D :are supported by this server"},
-			{Kind: 'S', Data: ":testserver.example.com 005 Test768 TARGMAX=NAMES:1,LIST:1,KICK:1,WHOIS:1,PRIVMSG:4,NOTICE:4,ACCEPT:,MONITOR: EXTBAN=$,&acjmorsuxz| CLIENTVER=3.0 :are supported by this server"},
-			{Kind: 'S', Data: ":testserver.example.com 251 Test768 :There are 0 users and 2 invisible on 1 servers"},
-			{Kind: 'S', Data: ":testserver.example.com 254 Test768 1 :channels formed"},
-			{Kind: 'S', Data: ":testserver.example.com 255 Test768 :I have 2 clients and 0 servers"},
-			{Kind: 'S', Data: ":testserver.example.com 265 Test768 2 2 :Current local users 2, max 2"},
-			{Kind: 'S', Data: ":testserver.example.com 266 Test768 2 2 :Current global users 2, max 2"},
-			{Kind: 'S', Data: ":testserver.example.com 250 Test768 :Highest connection count: 2 (2 clients) (8 connections received)"},
-			{Kind: 'S', Data: ":testserver.example.com 375 Test768 :- testserver.example.com Message of the Day - "},
-			{Kind: 'S', Data: ":testserver.example.com 372 Test768 :- This server is only for testing irce, not chatting. If you happen"},
-			{Kind: 'S', Data: ":testserver.example.com 372 Test768 :- to connect to it by accident, please disconnect immediately."},
-			{Kind: 'S', Data: ":testserver.example.com 372 Test768 :-  "},
-			{Kind: 'S', Data: ":testserver.example.com 372 Test768 :-  - #Test  :: Test Channel"},
-			{Kind: 'S', Data: ":testserver.example.com 372 Test768 :-  - #Test2 :: Other Test Channel"},
-			{Kind: 'S', Data: ":testserver.example.com 376 Test768 :End of /MOTD command."},
-			{Kind: 'S', Data: ":testserver.example.com 352 Test768 * ~Tester testclient.example.com testserver.example.com Test768 H :0 ..."},
-			{Kind: 'S', Data: ":Test768 MODE Test768 :+i"},
-			{Kind: 'S', Data: "PING :testserver.example.com"}, // Ping/Pong to sync.
-			{Kind: 'C', Data: "PONG :testserver.example.com"},
+			{Server: ":testserver.example.com 433 * Test :Nick is not available"},
+			{Client: "NICK Test2"},
+			{Server: ":testserver.example.com 433 * Test2 :Nick is not available"},
+			{Client: "NICK Test3"},
+			{Server: ":testserver.example.com 433 * Test3 :Nick is not available"},
+			{Client: "NICK Test4"},
+			{Server: ":testserver.example.com 433 * Test4 :Nick is not available"},
+			{Client: "NICK Test768"},
+			{Server: ":testserver.example.com 001 Test768 :Welcome to the TestServer Internet Relay Chat Network test"},
+			{Client: "WHO Test768*"},
+			{Server: ":testserver.example.com 002 Test768 :Your host is testserver.example.com[testserver.example.com/6667], running version charybdis-4-rc3"},
+			{Server: ":testserver.example.com 003 Test768 :This server was created Fri Nov 25 2016 at 17:28:20 CET"},
+			{Server: ":testserver.example.com 004 Test768 testserver.example.com charybdis-4-rc3 DQRSZagiloswxz CFILNPQbcefgijklmnopqrstvz bkloveqjfI"},
+			{Server: ":testserver.example.com 005 Test768 FNC SAFELIST ELIST=CTU MONITOR=100 WHOX ETRACE KNOCK CHANTYPES=#& EXCEPTS INVEX CHANMODES=eIbq,k,flj,CFLNPQcgimnprstz CHANLIMIT=#&:15 :are supported by this server"},
+			{Server: ":testserver.example.com 005 Test768 PREFIX=(ov)@+ MAXLIST=bqeI:100 MODES=4 NETWORK=TestServer STATUSMSG=@+ CALLERID=g CASEMAPPING=rfc1459 NICKLEN=30 MAXNICKLEN=31 CHANNELLEN=50 TOPICLEN=390 DEAF=D :are supported by this server"},
+			{Server: ":testserver.example.com 005 Test768 TARGMAX=NAMES:1,LIST:1,KICK:1,WHOIS:1,PRIVMSG:4,NOTICE:4,ACCEPT:,MONITOR: EXTBAN=$,&acjmorsuxz| CLIENTVER=3.0 :are supported by this server"},
+			{Server: ":testserver.example.com 251 Test768 :There are 0 users and 2 invisible on 1 servers"},
+			{Server: ":testserver.example.com 254 Test768 1 :channels formed"},
+			{Server: ":testserver.example.com 255 Test768 :I have 2 clients and 0 servers"},
+			{Server: ":testserver.example.com 265 Test768 2 2 :Current local users 2, max 2"},
+			{Server: ":testserver.example.com 266 Test768 2 2 :Current global users 2, max 2"},
+			{Server: ":testserver.example.com 250 Test768 :Highest connection count: 2 (2 clients) (8 connections received)"},
+			{Server: ":testserver.example.com 375 Test768 :- testserver.example.com Message of the Day - "},
+			{Server: ":testserver.example.com 372 Test768 :- This server is only for testing irce, not chatting. If you happen"},
+			{Server: ":testserver.example.com 372 Test768 :- to connect to it by accident, please disconnect immediately."},
+			{Server: ":testserver.example.com 372 Test768 :-  "},
+			{Server: ":testserver.example.com 372 Test768 :-  - #Test  :: Test Channel"},
+			{Server: ":testserver.example.com 372 Test768 :-  - #Test2 :: Other Test Channel"},
+			{Server: ":testserver.example.com 376 Test768 :End of /MOTD command."},
+			{Server: ":testserver.example.com 352 Test768 * ~Tester testclient.example.com testserver.example.com Test768 H :0 ..."},
+			{Server: ":Test768 MODE Test768 :+i"},
+			{Server: "PING :testserver.example.com"}, // Ping/Pong to sync.
+			{Client: "PONG :testserver.example.com"},
 			{Callback: func() error {
 				if client.Nick() != "Test768" {
 					return errors.New("client.Nick shouldn't be " + client.Nick())
@@ -104,12 +104,12 @@ func TestClient(t *testing.T) {
 				client.Join("#Test")
 				return nil
 			}},
-			{Kind: 'C', Data: "JOIN #Test"},
-			{Kind: 'S', Data: ":Test768!~Tester@127.0.0.1 JOIN #Test *"},
-			{Kind: 'S', Data: ":testserver.example.com 353 Test768 = #Test :Test768!~Tester@127.0.0.1 @+Gisle!irce@10.32.0.1"},
-			{Kind: 'S', Data: ":testserver.example.com 366 Test768 #Test :End of /NAMES list."},
-			{Kind: 'S', Data: "PING :testserver.example.com"}, // Ping/Pong to sync.
-			{Kind: 'C', Data: "PONG :testserver.example.com"},
+			{Client: "JOIN #Test"},
+			{Server: ":Test768!~Tester@127.0.0.1 JOIN #Test *"},
+			{Server: ":testserver.example.com 353 Test768 = #Test :Test768!~Tester@127.0.0.1 @+Gisle!irce@10.32.0.1"},
+			{Server: ":testserver.example.com 366 Test768 #Test :End of /NAMES list."},
+			{Server: "PING :testserver.example.com"}, // Ping/Pong to sync.
+			{Client: "PONG :testserver.example.com"},
 			{Callback: func() error {
 				if client.Channel("#Test") == nil {
 					return errors.New("Channel #Test not found")
@@ -117,13 +117,13 @@ func TestClient(t *testing.T) {
 
 				return nil
 			}},
-			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 MODE #Test +osv Test768 Test768"},
-			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 MODE #Test +N-s "},
-			{Kind: 'S', Data: ":Test1234!~test2@172.17.37.1 JOIN #Test Test1234"},
-			{Kind: 'S', Data: ":Test4321!~test2@172.17.37.1 JOIN #Test Test1234"},
-			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 MODE #Test +v Test1234"},
-			{Kind: 'S', Data: "PING :testserver.example.com"}, // Ping/Pong to sync.
-			{Kind: 'C', Data: "PONG :testserver.example.com"},
+			{Server: ":Gisle!~irce@10.32.0.1 MODE #Test +osv Test768 Test768"},
+			{Server: ":Gisle!~irce@10.32.0.1 MODE #Test +N-s "},
+			{Server: ":Test1234!~test2@172.17.37.1 JOIN #Test Test1234"},
+			{Server: ":Test4321!~test2@172.17.37.1 JOIN #Test Test1234"},
+			{Server: ":Gisle!~irce@10.32.0.1 MODE #Test +v Test1234"},
+			{Server: "PING :testserver.example.com"}, // Ping/Pong to sync.
+			{Client: "PONG :testserver.example.com"},
 			{Callback: func() error {
 				channel := client.Channel("#Test")
 				if channel == nil {
@@ -145,14 +145,14 @@ func TestClient(t *testing.T) {
 
 				return nil
 			}},
-			{Kind: 'S', Data: ":Test1234!~test2@172.17.37.1 NICK Hunter2"},
-			{Kind: 'S', Data: ":Hunter2!~test2@172.17.37.1 AWAY :Doing stuff"},
-			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 AWAY"},
-			{Kind: 'S', Data: ":Gisle!~irce@10.32.0.1 PART #Test :Leaving the channel"},
-			{Kind: 'S', Data: ":Hunter2!~test2@172.17.37.1 CHGHOST test2 some.awesome.virtual.host"},
-			{Kind: 'S', Data: "@account=Hunter2 :Test4321!~test2@172.17.37.1 PRIVMSG #Test :Hello World."},
-			{Kind: 'S', Data: "PING :testserver.example.com"}, // Ping/Pong to sync.
-			{Kind: 'C', Data: "PONG :testserver.example.com"},
+			{Server: ":Test1234!~test2@172.17.37.1 NICK Hunter2"},
+			{Server: ":Hunter2!~test2@172.17.37.1 AWAY :Doing stuff"},
+			{Server: ":Gisle!~irce@10.32.0.1 AWAY"},
+			{Server: ":Gisle!~irce@10.32.0.1 PART #Test :Leaving the channel"},
+			{Server: ":Hunter2!~test2@172.17.37.1 CHGHOST test2 some.awesome.virtual.host"},
+			{Server: "@account=Hunter2 :Test4321!~test2@172.17.37.1 PRIVMSG #Test :Hello World."},
+			{Server: "PING :testserver.example.com"}, // Ping/Pong to sync.
+			{Client: "PONG :testserver.example.com"},
 			{Callback: func() error {
 				channel := client.Channel("#Test")
 				if channel == nil {
@@ -188,9 +188,9 @@ func TestClient(t *testing.T) {
 
 				return nil
 			}},
-			{Kind: 'S', Data: ":Hunter2!~test2@172.17.37.1 PRIVMSG Test768 :Hello, World"},
-			{Kind: 'S', Data: "PING :testserver.example.com"}, // Ping/Pong to sync.
-			{Kind: 'C', Data: "PONG :testserver.example.com"},
+			{Server: ":Hunter2!~test2@172.17.37.1 PRIVMSG Test768 :Hello, World"},
+			{Server: "PING :testserver.example.com"}, // Ping/Pong to sync.
+			{Client: "PONG :testserver.example.com"},
 			{Callback: func() error {
 				query := client.Query("Hunter2")
 				if query == nil {
@@ -199,12 +199,12 @@ func TestClient(t *testing.T) {
 
 				return nil
 			}},
-			{Kind: 'S', Data: ":Hunter2!~test2@172.17.37.1 NICK SevenAsterisks"},
-			{Kind: 'S', Data: "PING :testserver.example.com"}, // Ping/Pong to sync.
-			{Kind: 'C', Data: "PONG :testserver.example.com"},
+			{Server: ":Hunter2!~test2@172.17.37.1 NICK SevenAsterisks"},
+			{Server: "PING :testserver.example.com"}, // Ping/Pong to sync.
+			{Client: "PONG :testserver.example.com"},
 			{Callback: func() error {
-				oldQuerry := client.Query("Hunter2")
-				if oldQuerry != nil {
+				oldQuery := client.Query("Hunter2")
+				if oldQuery != nil {
 					return errors.New("Did find query by old name")
 				}
 
@@ -219,8 +219,8 @@ func TestClient(t *testing.T) {
 				client.EmitInput("/invalidcommand stuff and things", nil)
 				return nil
 			}},
-			{Kind: 'C', Data: "INVALIDCOMMAND stuff and things"},
-			{Kind: 'S', Data: ":testserver.example.com 421 Test768 INVALIDCOMMAND :Unknown command"},
+			{Client: "INVALIDCOMMAND stuff and things"},
+			{Server: ":testserver.example.com 421 Test768 INVALIDCOMMAND :Unknown command"},
 			{Callback: func() error {
 				channel := client.Channel("#Test")
 				if channel == nil {
@@ -233,14 +233,14 @@ func TestClient(t *testing.T) {
 				client.EmitInput("Hello again", channel)
 				return nil
 			}},
-			{Kind: 'C', Data: "PRIVMSG #Test :\x01ACTION does stuff\x01"},
-			{Kind: 'C', Data: "PRIVMSG #Test :\x01ACTION describes stuff\x01"},
-			{Kind: 'C', Data: "PRIVMSG #Test :Hello, World"},
-			{Kind: 'C', Data: "PRIVMSG #Test :Hello again"},
-			{Kind: 'S', Data: ":Test768!~Tester@127.0.0.1 PRIVMSG #Test :\x01ACTION does stuff\x01"},
-			{Kind: 'S', Data: ":Test768!~Tester@127.0.0.1 PRIVMSG #Test :\x01ACTION describes stuff\x01"},
-			{Kind: 'S', Data: ":Test768!~Tester@127.0.0.1 PRIVMSG #Test :Hello, World"},
-			{Kind: 'S', Data: ":Test768!~Tester@127.0.0.1 PRIVMSG #Test :Hello again"},
+			{Client: "PRIVMSG #Test :\x01ACTION does stuff\x01"},
+			{Client: "PRIVMSG #Test :\x01ACTION describes stuff\x01"},
+			{Client: "PRIVMSG #Test :Hello, World"},
+			{Client: "PRIVMSG #Test :Hello again"},
+			{Server: ":Test768!~Tester@127.0.0.1 PRIVMSG #Test :\x01ACTION does stuff\x01"},
+			{Server: ":Test768!~Tester@127.0.0.1 PRIVMSG #Test :\x01ACTION describes stuff\x01"},
+			{Server: ":Test768!~Tester@127.0.0.1 PRIVMSG #Test :Hello, World"},
+			{Server: ":Test768!~Tester@127.0.0.1 PRIVMSG #Test :Hello again"},
 			{Callback: func() error {
 				channel := client.Channel("#Test")
 				if channel == nil {
@@ -251,10 +251,10 @@ func TestClient(t *testing.T) {
 				client.EmitInput("/npcac Test_NPC stuffs things", channel)
 				return nil
 			}},
-			{Kind: 'C', Data: "MODE #Test +N"},
-			{Kind: 'C', Data: "NPCA #Test Test_NPC :stuffs things"},
-			{Kind: 'S', Data: ":Test768!~Tester@127.0.0.1 MODE #Test +N"},
-			{Kind: 'S', Data: ":\x1FTest_NPC\x1F!Test768@npc.fakeuser.invalid PRIVMSG #Test :\x01ACTION stuffs things\x01"},
+			{Client: "MODE #Test +N"},
+			{Client: "NPCA #Test Test_NPC :stuffs things"},
+			{Server: ":Test768!~Tester@127.0.0.1 MODE #Test +N"},
+			{Server: ":\x1FTest_NPC\x1F!Test768@npc.fakeuser.invalid PRIVMSG #Test :\x01ACTION stuffs things\x01"},
 			{Callback: func() error {
 				channel := client.Channel("#Test")
 				if channel == nil {
@@ -265,16 +265,21 @@ func TestClient(t *testing.T) {
 				client.Sayf(channel.Name(), "Hello, %s", "World")
 				return nil
 			}},
-			{Kind: 'C', Data: "PRIVMSG #Test :\x01ACTION does stuff with 42 things\x01"},
-			{Kind: 'C', Data: "PRIVMSG #Test :Hello, World"},
+			{Client: "PRIVMSG #Test :\x01ACTION does stuff with 42 things\x01"},
+			{Client: "PRIVMSG #Test :Hello, World"},
 			{Callback: func() error {
-				client.Part("#Test")
-				return nil
+				channel := client.Channel("#Test")
+				if channel == nil {
+					return errors.New("#Test doesn't exist")
+				}
+
+				_, err := client.RemoveTarget(channel)
+				return err
 			}},
-			{Kind: 'C', Data: "PART #Test"},
-			{Kind: 'S', Data: ":Test768!~Tester@127.0.0.1 PART #Test"},
-			{Kind: 'S', Data: "PING :testserver.example.com"}, // Ping/Pong to sync.
-			{Kind: 'C', Data: "PONG :testserver.example.com"},
+			{Client: "PART #Test"},
+			{Server: ":Test768!~Tester@127.0.0.1 PART #Test"},
+			{Server: "PING :testserver.example.com"}, // Ping/Pong to sync.
+			{Client: "PONG :testserver.example.com"},
 			{Callback: func() error {
 				if client.Channel("#Test") != nil {
 					return errors.New("#Test is still there.")
@@ -286,12 +291,12 @@ func TestClient(t *testing.T) {
 				client.Join("#Test2")
 				return nil
 			}},
-			{Kind: 'C', Data: "JOIN #Test2"},
-			{Kind: 'S', Data: ":Test768!~Tester@127.0.0.1 JOIN #Test2 *"},
-			{Kind: 'S', Data: ":testserver.example.com 353 Test768 = #Test2 :Test768!~Tester@127.0.0.1 +DoomedUser!doom@example.com @+ZealousMod!zeal@example.com"},
-			{Kind: 'S', Data: ":testserver.example.com 366 Test768 #Test2 :End of /NAMES list."},
-			{Kind: 'S', Data: "PING :testserver.example.com"}, // Ping/Pong to sync.
-			{Kind: 'C', Data: "PONG :testserver.example.com"},
+			{Client: "JOIN #Test2"},
+			{Server: ":Test768!~Tester@127.0.0.1 JOIN #Test2 *"},
+			{Server: ":testserver.example.com 353 Test768 = #Test2 :Test768!~Tester@127.0.0.1 +DoomedUser!doom@example.com @+ZealousMod!zeal@example.com"},
+			{Server: ":testserver.example.com 366 Test768 #Test2 :End of /NAMES list."},
+			{Server: "PING :testserver.example.com"}, // Ping/Pong to sync.
+			{Client: "PONG :testserver.example.com"},
 			{Callback: func() error {
 				channel := client.Channel("#Test2")
 				if channel == nil {
@@ -300,9 +305,9 @@ func TestClient(t *testing.T) {
 
 				return irctest.AssertUserlist(t, channel, "@ZealousMod", "+DoomedUser", "Test768")
 			}},
-			{Kind: 'S', Data: ":ZealousMod!zeal@example.com KICK #Test2 DoomedUser :Kickety kick"},
-			{Kind: 'S', Data: "PING :testserver.example.com sync"}, // Ping/Pong to sync.
-			{Kind: 'C', Data: "PONG :testserver.example.com sync"},
+			{Server: ":ZealousMod!zeal@example.com KICK #Test2 DoomedUser :Kickety kick"},
+			{Server: "PING :testserver.example.com sync"}, // Ping/Pong to sync.
+			{Client: "PONG :testserver.example.com sync"},
 			{Callback: func() error {
 				channel := client.Channel("#Test2")
 				if channel == nil {
@@ -311,9 +316,9 @@ func TestClient(t *testing.T) {
 
 				return irctest.AssertUserlist(t, channel, "@ZealousMod", "Test768")
 			}},
-			{Kind: 'S', Data: ":ZealousMod!zeal@example.com KICK #Test2 Test768 :Kickety kick"},
-			{Kind: 'S', Data: "PING :testserver.example.com sync"}, // Ping/Pong to sync.
-			{Kind: 'C', Data: "PONG :testserver.example.com sync"},
+			{Server: ":ZealousMod!zeal@example.com KICK #Test2 Test768 :Kickety kick"},
+			{Server: "PING :testserver.example.com sync"}, // Ping/Pong to sync.
+			{Client: "PONG :testserver.example.com sync"},
 			{Callback: func() error {
 				if client.Channel("#Test2") != nil {
 					return errors.New("#Test2 is still there.")
@@ -348,8 +353,12 @@ func TestClient(t *testing.T) {
 		t.Error("CBErr:", fail.CBErr)
 		t.Error("Result:", fail.Result)
 		if fail.Index >= 0 {
-			t.Error("Line.Kind:", interaction.Lines[fail.Index].Kind)
-			t.Error("Line.Data:", interaction.Lines[fail.Index].Data)
+			if interaction.Lines[fail.Index].Server != "" {
+				t.Error("Line.Server:", interaction.Lines[fail.Index].Server)
+			}
+			if interaction.Lines[fail.Index].Client != "" {
+				t.Error("Line.Client:", interaction.Lines[fail.Index].Client)
+			}
 		}
 	}
 
@@ -368,7 +377,7 @@ func TestParenthesesBug(t *testing.T) {
 		Nick: "Stuff",
 	})
 
-	irc.Handle(func(event *irc.Event, client *irc.Client) {
+	irc.AddHandler(func(event *irc.Event, client *irc.Client) {
 		if event.Name() == "packet.privmsg" || event.Nick == "Dante" {
 			gotMessage = true
 

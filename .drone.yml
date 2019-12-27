@@ -1,6 +1,6 @@
 workspace:
   base: /go
-  path: src/git.aiterp.net/gisle/irc
+  path: src/github.com/gissleh/irc
 
 pipeline:
   test:

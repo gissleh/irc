@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"git.aiterp.net/gisle/irc/isupport"
-	"git.aiterp.net/gisle/irc/list"
+	"github.com/gissleh/irc/isupport"
+	"github.com/gissleh/irc/list"
 )
 
 var testISupport isupport.ISupport
