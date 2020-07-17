@@ -50,6 +50,7 @@ func (interaction *Interaction) Listen() (addr string, err error) {
 			line := lines[i]
 
 			if line.Server != "" {
+				_ = conn.SetWriteDeadline(time.Now().Add(time.Second * 2))
 				_, err := conn.Write(append([]byte(line.Server), '\r', '\n'))
 				if err != nil {
 					interaction.Failure = &InteractionFailure{
@@ -58,7 +59,7 @@ func (interaction *Interaction) Listen() (addr string, err error) {
 					return
 				}
 			} else if line.Client != "" {
-				conn.SetReadDeadline(time.Now().Add(time.Second * 2))
+				_ = conn.SetReadDeadline(time.Now().Add(time.Second * 2))
 				input, err := reader.ReadString('\n')
 				if err != nil {
 					interaction.Failure = &InteractionFailure{

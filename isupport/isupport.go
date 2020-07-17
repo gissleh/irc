@@ -49,12 +49,12 @@ func (isupport *ISupport) ParsePrefixedNick(fullnick string) (nick, modes, prefi
 	isupport.lock.RLock()
 	defer isupport.lock.RUnlock()
 
-	if fullnick == "" || isupport.state.Prefixes == nil {
+	if fullnick == "" || isupport.state.PrefixMap == nil {
 		return fullnick, "", ""
 	}
 
 	for i, ch := range fullnick {
-		if mode, ok := isupport.state.Prefixes[ch]; ok {
+		if mode, ok := isupport.state.PrefixMap[ch]; ok {
 			modes += string(mode)
 			prefixes += string(ch)
 		} else {
@@ -163,7 +163,7 @@ func (isupport *ISupport) Mode(prefix rune) rune {
 	isupport.lock.RLock()
 	defer isupport.lock.RUnlock()
 
-	return isupport.state.Prefixes[prefix]
+	return isupport.state.PrefixMap[prefix]
 }
 
 // Prefix gets the prefix for the mode. It's a bit slower
@@ -173,7 +173,7 @@ func (isupport *ISupport) Prefix(mode rune) rune {
 	isupport.lock.RLock()
 	defer isupport.lock.RUnlock()
 
-	for prefix, mappedMode := range isupport.state.Prefixes {
+	for prefix, mappedMode := range isupport.state.PrefixMap {
 		if mappedMode == mode {
 			return prefix
 		}
@@ -182,7 +182,7 @@ func (isupport *ISupport) Prefix(mode rune) rune {
 	return rune(0)
 }
 
-// Prefixes gets the prefixes in the order of the modes, skipping any
+// PrefixMap gets the prefixes in the order of the modes, skipping any
 // invalid modes.
 func (isupport *ISupport) Prefixes(modes string) string {
 	result := ""
@@ -280,9 +280,9 @@ func (isupport *ISupport) Set(key, value string) {
 
 			isupport.state.PrefixOrder = split[1]
 			isupport.state.ModeOrder = split[0]
-			isupport.state.Prefixes = make(map[rune]rune, len(split[0]))
+			isupport.state.PrefixMap = make(map[rune]rune, len(split[0]))
 			for i, ch := range split[0] {
-				isupport.state.Prefixes[rune(split[1][i])] = ch
+				isupport.state.PrefixMap[rune(split[1][i])] = ch
 			}
 		}
 	case "CHANMODES": // CHANMODES=eIbq,k,flj,CFLNPQcgimnprstz
@@ -304,7 +304,7 @@ func (isupport *ISupport) Reset() {
 	isupport.lock.Lock()
 	isupport.state.PrefixOrder = ""
 	isupport.state.ModeOrder = ""
-	isupport.state.Prefixes = nil
+	isupport.state.PrefixMap = nil
 	isupport.state.ChannelModes = nil
 
 	for key := range isupport.state.Raw {

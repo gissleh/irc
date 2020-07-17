@@ -35,7 +35,7 @@ func TestClient(t *testing.T) {
 			{Client: "NICK Test"},
 			{Client: "USER Tester 8 * :..."},
 			{Server: ":testserver.example.com CAP * LS :multi-prefix chghost userhost-in-names vendorname/custom-stuff echo-message =malformed vendorname/advanced-custom-stuff=things,and,items"},
-			{Client: "CAP REQ :multi-prefix chghost userhost-in-names"},
+			{Client: "CAP REQ :multi-prefix chghost userhost-in-names echo-message"},
 			{Server: ":testserver.example.com CAP * ACK :multi-prefix userhost-in-names"},
 			{Client: "CAP END"},
 			{Callback: func() error {
@@ -377,8 +377,8 @@ func TestParenthesesBug(t *testing.T) {
 		Nick: "Stuff",
 	})
 
-	irc.AddHandler(func(event *irc.Event, client *irc.Client) {
-		if event.Name() == "packet.privmsg" || event.Nick == "Dante" {
+	client.AddHandler(func(event *irc.Event, client *irc.Client) {
+		if event.Name() == "packet.privmsg" || event.Nick == "Beans" {
 			gotMessage = true
 
 			if event.Text != "((Remove :01 goofs!*))" {
@@ -388,7 +388,7 @@ func TestParenthesesBug(t *testing.T) {
 		}
 	})
 
-	packet, err := irc.ParsePacket("@example/tag=32; :Dante!TheBeans@captain.purple.beans PRIVMSG Stuff :((Remove :01 goofs!*))")
+	packet, err := irc.ParsePacket("@example/tag=32; :Beans!beans@beans.example.com PRIVMSG Stuff :((Remove :01 goofs!*))")
 	if err != nil {
 		t.Error("Parse", err)
 	}

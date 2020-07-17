@@ -2,7 +2,7 @@ package isupport
 
 type State struct {
 	Raw          map[string]string `json:"raw"`
-	Prefixes     map[rune]rune     `json:"-"`
+	PrefixMap    map[rune]rune     `json:"prefixMap"`
 	ModeOrder    string            `json:"modeOrder"`
 	PrefixOrder  string            `json:"prefixOrder"`
 	ChannelModes []string          `json:"channelModes"`

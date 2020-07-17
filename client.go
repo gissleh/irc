@@ -43,15 +43,15 @@ var ErrNoConnection = errors.New("irc: no connection")
 // added to the client.
 var ErrTargetAlreadyAdded = errors.New("irc: target already added")
 
-// ErrTargetConflict is returned by Clinet.AddTarget if there already exists a target
+// ErrTargetConflict is returned by Client.AddTarget if there already exists a target
 // matching the name and kind.
 var ErrTargetConflict = errors.New("irc: target name and kind match existing target")
 
-// ErrTargetNotFound is returned by Clinet.RemoveTarget if the target is not part of
+// ErrTargetNotFound is returned by Client.RemoveTarget if the target is not part of
 // the client's target list
 var ErrTargetNotFound = errors.New("irc: target not found")
 
-// ErrTargetIsStatus is returned by Clinet.RemoveTarget if the target is the client's
+// ErrTargetIsStatus is returned by Client.RemoveTarget if the target is the client's
 // status target
 var ErrTargetIsStatus = errors.New("irc: cannot remove status target")
 
@@ -85,6 +85,8 @@ type Client struct {
 	status    *Status
 	targets   []Target
 	targetIds map[Target]string
+
+	handlers []Handler
 }
 
 // New creates a new client. The context can be context.Background if you want manually to
@@ -102,7 +104,7 @@ func New(ctx context.Context, config Config) *Client {
 		status:     &Status{},
 	}
 
-	client.AddTarget(client.status)
+	_, _ = client.AddTarget(client.status)
 
 	client.ctx, client.cancel = context.WithCancel(ctx)
 
@@ -174,6 +176,7 @@ func (client *Client) Ready() bool {
 
 func (client *Client) State() ClientState {
 	client.mutex.RLock()
+
 	state := ClientState{
 		Nick:      client.nick,
 		User:      client.user,
@@ -190,6 +193,7 @@ func (client *Client) State() ClientState {
 			state.Caps = append(state.Caps, key)
 		}
 	}
+	sort.Strings(state.Caps)
 
 	for _, target := range client.targets {
 		tstate := target.State()
@@ -200,8 +204,6 @@ func (client *Client) State() ClientState {
 
 	client.mutex.RUnlock()
 
-	sort.Strings(state.Caps)
-
 	return state
 }
 
@@ -210,7 +212,7 @@ func (client *Client) Connect(addr string, ssl bool) (err error) {
 	var conn net.Conn
 
 	if client.Connected() {
-		client.Disconnect()
+		_ = client.Disconnect()
 	}
 
 	client.isupport.Reset()
@@ -219,7 +221,7 @@ func (client *Client) Connect(addr string, ssl bool) (err error) {
 	client.quit = false
 	client.mutex.Unlock()
 
-	client.EmitSync(context.Background(), NewEvent("client", "connecting"))
+	_ = client.EmitSync(context.Background(), NewEvent("client", "connecting"))
 
 	if ssl {
 		conn, err = tls.Dial("tcp", addr, &tls.Config{
@@ -283,9 +285,7 @@ func (client *Client) Disconnect() error {
 
 	client.quit = true
 
-	err := client.conn.Close()
-
-	return err
+	return client.conn.Close()
 }
 
 // Connected returns true if the client has a connection
@@ -314,7 +314,7 @@ func (client *Client) Send(line string) error {
 	_, err := conn.Write([]byte(line))
 	if err != nil {
 		client.EmitNonBlocking(NewErrorEvent("network", err.Error()))
-		client.Disconnect()
+		_ = client.Disconnect()
 	}
 
 	return err
@@ -402,7 +402,7 @@ func (client *Client) Emit(event Event) context.Context {
 	return event.ctx
 }
 
-// EmitNonBlocking is just like emit, but it will spin off a goroutine if the channel is full.
+// EmitNonBlocking is just like emitInGlobalHandlers, but it will spin off a goroutine if the channel is full.
 // This lets it be called from other handlers without ever blocking. See Emit for what the
 // returned context is for.
 func (client *Client) EmitNonBlocking(event Event) context.Context {
@@ -476,7 +476,7 @@ func (client *Client) SetValue(key string, value interface{}) {
 // Destroy destroys the client, which will lead to a disconnect. Cancelling the
 // parent context will do the same.
 func (client *Client) Destroy() {
-	client.Disconnect()
+	_ = client.Disconnect()
 	client.cancel()
 	close(client.sends)
 	close(client.events)
@@ -668,6 +668,14 @@ func (client *Client) FindUser(nick string) (u list.User, ok bool) {
 	return list.User{}, false
 }
 
+// AddHandler adds a handler. This is thread safe, unlike adding global handlers.
+func (client *Client) AddHandler(handler Handler) {
+	client.mutex.Lock()
+	client.handlers = append(client.handlers[:0], client.handlers...)
+	client.handlers = append(client.handlers, handler)
+	client.mutex.Unlock()
+}
+
 func (client *Client) handleEventLoop() {
 	ticker := time.NewTicker(time.Second * 30)
 
@@ -680,7 +688,6 @@ func (client *Client) handleEventLoop() {
 				}
 
 				client.handleEvent(event)
-				emit(event, client)
 
 				// Turn an unhandled input into a raw command.
 				if event.kind == "input" && !event.preventedDefault {
@@ -695,7 +702,6 @@ func (client *Client) handleEventLoop() {
 				event.ctx, event.cancel = context.WithCancel(client.ctx)
 
 				client.handleEvent(&event)
-				emit(&event, client)
 
 				event.cancel()
 			}
@@ -710,13 +716,12 @@ end:
 
 	ticker.Stop()
 
-	client.Disconnect()
+	_ = client.Disconnect()
 
 	event := NewEvent("client", "destroy")
 	event.ctx, event.cancel = context.WithCancel(client.ctx)
 
 	client.handleEvent(&event)
-	emit(&event, client)
 
 	event.cancel()
 }
@@ -742,7 +747,7 @@ func (client *Client) handleSendLoop() {
 			queue = client.config.SendRate - 1
 		}
 
-		client.Send(line)
+		_ = client.Send(line)
 	}
 }
 
@@ -771,7 +776,7 @@ func (client *Client) handleEvent(event *Event) {
 			client.mutex.RUnlock()
 
 			if lastSend > time.Second*120 {
-				client.Sendf("PING :%x%x%x", mathRand.Int63(), mathRand.Int63(), mathRand.Int63())
+				_ = client.Sendf("PING :%x%x%x", mathRand.Int63(), mathRand.Int63(), mathRand.Int63())
 			}
 		}
 	case "packet.ping":
@@ -784,7 +789,7 @@ func (client *Client) handleEvent(event *Event) {
 				message += " :" + event.Text
 			}
 
-			client.Send(message)
+			_ = client.Send(message)
 		}
 
 	// Client Registration
@@ -796,11 +801,11 @@ func (client *Client) handleEvent(event *Event) {
 				delete(client.capEnabled, key)
 			}
 			client.mutex.Unlock()
-			client.Send("CAP LS 302")
+			_ = client.Send("CAP LS 302")
 
 			// Send server password if configured.
 			if client.config.Password != "" {
-				client.Sendf("PASS :%s", client.config.Password)
+				_ = client.Sendf("PASS :%s", client.config.Password)
 			}
 
 			// Reuse nick or get from config
@@ -812,19 +817,22 @@ func (client *Client) handleEvent(event *Event) {
 			client.mutex.RUnlock()
 
 			// Start registration.
-			client.Sendf("NICK %s", nick)
-			client.Sendf("USER %s 8 * :%s", client.config.User, client.config.RealName)
+			_ = client.Sendf("NICK %s", nick)
+			_ = client.Sendf("USER %s 8 * :%s", client.config.User, client.config.RealName)
 		}
 
+	// Welcome message
 	case "packet.001":
 		{
 			client.mutex.Lock()
 			client.nick = event.Args[0]
 			client.mutex.Unlock()
 
-			client.Sendf("WHO %s", event.Args[0])
+			// Send a WHO right away to gather enough client information for precise message cutting.
+			_ = client.Sendf("WHO %s", event.Args[0])
 		}
 
+	// Nick rotation
 	case "packet.431", "packet.432", "packet.433", "packet.436":
 		{
 			client.mutex.RLock()
@@ -839,7 +847,7 @@ func (client *Client) handleEvent(event *Event) {
 				sent := false
 				for _, alt := range client.config.Alternatives {
 					if nick == prev {
-						client.Sendf("NICK %s", alt)
+						_ = client.Sendf("NICK %s", alt)
 						sent = true
 						break
 					}
@@ -849,7 +857,7 @@ func (client *Client) handleEvent(event *Event) {
 
 				if !sent {
 					// "LastAlt" -> "Nick23962"
-					client.Sendf("NICK %s%05d", client.config.Nick, mathRand.Int31n(99999))
+					_ = client.Sendf("NICK %s%05d", client.config.Nick, mathRand.Int31n(99999))
 				}
 			}
 		}
@@ -918,9 +926,9 @@ func (client *Client) handleEvent(event *Event) {
 							requestedCaps := strings.Join(client.capsRequested, " ")
 							client.mutex.RUnlock()
 
-							client.Send("CAP REQ :" + requestedCaps)
+							_ = client.Send("CAP REQ :" + requestedCaps)
 						} else {
-							client.Send("CAP END")
+							_ = client.Send("CAP END")
 						}
 					}
 				}
@@ -934,7 +942,7 @@ func (client *Client) handleEvent(event *Event) {
 						client.mutex.Unlock()
 					}
 
-					client.Send("CAP END")
+					_ = client.Send("CAP END")
 				}
 			case "NAK":
 				{
@@ -954,7 +962,7 @@ func (client *Client) handleEvent(event *Event) {
 					requestedCaps := strings.Join(client.capsRequested, " ")
 					client.mutex.RUnlock()
 
-					client.Send("CAP REQ :" + requestedCaps)
+					_ = client.Send("CAP REQ :" + requestedCaps)
 				}
 			case "NEW":
 				{
@@ -969,7 +977,7 @@ func (client *Client) handleEvent(event *Event) {
 					}
 
 					if len(requests) > 0 {
-						client.Send("CAP REQ :" + strings.Join(requests, " "))
+						_ = client.Send("CAP REQ :" + strings.Join(requests, " "))
 					}
 				}
 			case "DEL":
@@ -1021,7 +1029,7 @@ func (client *Client) handleEvent(event *Event) {
 
 			if event.Nick == client.nick {
 				channel = &Channel{name: event.Arg(0), userlist: list.New(&client.isupport)}
-				client.AddTarget(channel)
+				_, _ = client.AddTarget(channel)
 			} else {
 				channel = client.Channel(event.Arg(0))
 			}
@@ -1038,7 +1046,7 @@ func (client *Client) handleEvent(event *Event) {
 
 			if event.Nick == client.nick {
 				channel.parted = true
-				client.RemoveTarget(channel)
+				_, _ = client.RemoveTarget(channel)
 			} else {
 				client.handleInTarget(channel, event)
 			}
@@ -1053,7 +1061,7 @@ func (client *Client) handleEvent(event *Event) {
 
 			if event.Arg(1) == client.nick {
 				channel.parted = true
-				client.RemoveTarget(channel)
+				_, _ = client.RemoveTarget(channel)
 			} else {
 				client.handleInTarget(channel, event)
 			}
@@ -1095,9 +1103,8 @@ func (client *Client) handleEvent(event *Event) {
 	// Message parsing
 	case "packet.privmsg", "ctcp.action":
 		{
-			// Target the mssage
+			// Target the message
 			target := Target(client.status)
-			spawned := false
 			targetName := event.Arg(0)
 			if targetName == client.nick {
 				target := client.Target("query", targetName)
@@ -1108,9 +1115,8 @@ func (client *Client) handleEvent(event *Event) {
 						Host: event.Host,
 					}}
 
-					client.AddTarget(query)
-
-					spawned = true
+					id, _ := client.AddTarget(query)
+					event.RenderTags["spawned"] = id
 
 					target = query
 				}
@@ -1128,10 +1134,6 @@ func (client *Client) handleEvent(event *Event) {
 			}
 
 			client.handleInTarget(target, event)
-
-			if spawned {
-				// TODO: Message has higher importance // 0:Normal, 1:Important, 2:Highlight
-			}
 		}
 
 	case "packet.notice":
@@ -1202,7 +1204,7 @@ func (client *Client) handleEvent(event *Event) {
 			client.mutex.RUnlock()
 
 			if len(channels) > 0 {
-				client.Sendf("JOIN %s", strings.Join(channels, ","))
+				_ = client.Sendf("JOIN %s", strings.Join(channels, ","))
 				client.EmitNonBlocking(rejoinEvent)
 			}
 
@@ -1216,6 +1218,17 @@ func (client *Client) handleEvent(event *Event) {
 
 	if len(event.targets) == 0 {
 		client.handleInTarget(client.status, event)
+	}
+
+	client.mutex.RLock()
+	clientHandlers := client.handlers
+	client.mutex.RUnlock()
+
+	for _, handler := range globalHandlers {
+		handler(event, client)
+	}
+	for _, handler := range clientHandlers {
+		handler(event, client)
 	}
 }
 

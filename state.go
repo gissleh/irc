@@ -6,6 +6,7 @@ import (
 )
 
 type ClientState struct {
+	ID        string          `json:"id"`
 	Nick      string          `json:"nick"`
 	User      string          `json:"user"`
 	Host      string          `json:"host"`
