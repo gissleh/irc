@@ -4,6 +4,7 @@ import (
 	"context"
 	"math/rand"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,15 +42,24 @@ func BenchmarkHandle(b *testing.B) {
 	client := irc.New(context.Background(), irc.Config{})
 	event := irc.NewEvent("test", eventName)
 
+	wg := sync.WaitGroup{}
+	client.AddHandler(func(event2 *irc.Event, client *irc.Client) {
+		wg.Done()
+	})
+
 	b.Run("Emit", func(b *testing.B) {
+		wg.Add(b.N)
 		for n := 0; n < b.N; n++ {
 			client.Emit(event)
 		}
+		wg.Wait()
 	})
 
 	b.Run("EmitSync", func(b *testing.B) {
+		wg.Add(b.N)
 		for n := 0; n < b.N; n++ {
 			client.EmitSync(context.Background(), event)
 		}
+		wg.Wait()
 	})
 }
