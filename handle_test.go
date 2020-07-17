@@ -18,8 +18,10 @@ func TestHandle(t *testing.T) {
 	event := irc.NewEvent("test", eventName)
 	handled := false
 
-	irc.AddHandler(func(event *irc.Event, client *irc.Client) {
-		t.Log("Got:", event.Kind(), event.Verb())
+	client.AddHandler(func(event *irc.Event, client *irc.Client) {
+		if !handled {
+			t.Log("Got:", event.Kind(), event.Verb())
+		}
 
 		if event.Kind() == "test" && event.Verb() == eventName {
 			handled = true

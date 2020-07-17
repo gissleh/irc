@@ -52,9 +52,9 @@ func MRoleplay(event *irc.Event, client *irc.Client) {
 			cuts := ircutil.CutMessage(text, overhead)
 
 			for _, cut := range cuts {
-				npcCommand := "NPCA"
-				if event.Verb() == "npcc" {
-					npcCommand = "NPC"
+				npcCommand := "NPC"
+				if isAction {
+					npcCommand = "NPCA"
 				}
 
 				client.SendQueuedf("%s %s %s :%s", npcCommand, channel.Name(), nick, cut)
