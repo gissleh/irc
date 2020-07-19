@@ -1,3 +1,7 @@
+name: irc
+kind: pipeline
+type: exec
+
 workspace:
   base: /go
   path: src/github.com/gissleh/irc
@@ -6,12 +10,13 @@ pipeline:
   test:
     image: golang:${GO_VERSION}
     commands:
+      - go mod download
       - go test ./... -v
       - go test -bench ./...
 
 matrix:
   GO_VERSION:
    - "1.11"
-   - "1.10"
-   - "1.9"
-   - "1.8"
+   - "1.12"
+   - "1.13"
+   - "1.14"
