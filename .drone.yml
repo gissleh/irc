@@ -3,8 +3,8 @@ kind: pipeline
 type: exec
 
 workspace:
-  base: /go
-  path: src/github.com/gissleh/irc
+  base: /project
+  path: irc/
 
 pipeline:
   test:
