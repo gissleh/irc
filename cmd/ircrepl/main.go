@@ -27,9 +27,6 @@ func main() {
 
 	flag.Parse()
 
-	irc.AddHandler(handlers.Input)
-	irc.AddHandler(handlers.MRoleplay)
-
 	client := irc.New(ctx, irc.Config{
 		Nick:         *flagNick,
 		User:         *flagUser,
@@ -37,13 +34,16 @@ func main() {
 		Password:     *flagPass,
 	})
 
+	client.AddHandler(handlers.Input)
+	client.AddHandler(handlers.MRoleplay)
+
 	err := client.Connect(*flagServer, *flagSsl)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to connect: %s", err)
 	}
 
 	var target irc.Target
-	irc.AddHandler(func(event *irc.Event, client *irc.Client) {
+	client.AddHandler(func(event *irc.Event, client *irc.Client) {
 		if event.Name() == "input.target" {
 			name := event.Arg(0)
 

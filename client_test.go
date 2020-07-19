@@ -3,18 +3,15 @@ package irc_test
 import (
 	"context"
 	"errors"
+	"github.com/gissleh/irc/handlers"
 	"testing"
 
 	"github.com/gissleh/irc"
-	"github.com/gissleh/irc/handlers"
 	"github.com/gissleh/irc/internal/irctest"
 )
 
 // Integration test below, brace yourself.
 func TestClient(t *testing.T) {
-	irc.AddHandler(handlers.Input)
-	irc.AddHandler(handlers.MRoleplay)
-
 	client := irc.New(context.Background(), irc.Config{
 		Nick:         "Test",
 		User:         "Tester",
@@ -22,6 +19,9 @@ func TestClient(t *testing.T) {
 		Alternatives: []string{"Test2", "Test3", "Test4", "Test768"},
 		SendRate:     1000,
 	})
+
+	client.AddHandler(handlers.Input)
+	client.AddHandler(handlers.MRoleplay)
 
 	t.Logf("Client.ID = %#+v", client.ID())
 	if client.ID() == "" {

@@ -23,3 +23,7 @@ type TargetState struct {
 	Name  string      `json:"name"`
 	Users []list.User `json:"users,omitempty"`
 }
+
+type EventData struct {
+
+}

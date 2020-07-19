@@ -1224,9 +1224,6 @@ func (client *Client) handleEvent(event *Event) {
 	clientHandlers := client.handlers
 	client.mutex.RUnlock()
 
-	for _, handler := range globalHandlers {
-		handler(event, client)
-	}
 	for _, handler := range clientHandlers {
 		handler(event, client)
 	}
