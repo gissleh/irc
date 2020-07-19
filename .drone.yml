@@ -8,6 +8,7 @@ workspace:
 
 pipeline:
   test:
+    name: test-go-${GO_VERSION}
     image: golang:${GO_VERSION}
     commands:
       - go mod download
