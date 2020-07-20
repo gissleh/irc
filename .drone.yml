@@ -7,38 +7,8 @@ workspace:
   path: irc/
 
 pipeline:
-  test-1.8:
-    image: golang:1.8
-    commands:
-      - mkdir -p /go/src/github.com/gissleh/
-      - mv /project/irc /go/src/github.com/gissleh/
-      - cd /go/src/github.com/gissleh/irc/
-      - go test ./... -v
-      - go test -bench ./...
-  test-1.9:
-    image: golang:1.9
-    commands:
-      - mkdir -p /go/src/github.com/gissleh/
-      - mv /project/irc /go/src/github.com/gissleh/
-      - cd /go/src/github.com/gissleh/irc/
-      - go test ./... -v
-      - go test -bench ./...
-  test-1.10:
-    image: golang:1.10
-    commands:
-      - mkdir -p /go/src/github.com/gissleh/
-      - mv /project/irc /go/src/github.com/gissleh/
-      - cd /go/src/github.com/gissleh/irc/
-      - go test ./... -v
-      - go test -bench ./...
-  test-1.11:
-    image: golang:1.11
-    commands:
-      - go mod download
-      - go test ./... -v
-      - go test -bench ./...
-  test-1.12:
-    image: golang:1.12
+  test-1.14:
+    image: golang:1.14
     commands:
       - go mod download
       - go test ./... -v
@@ -49,9 +19,36 @@ pipeline:
       - go mod download
       - go test ./... -v
       - go test -bench ./...
-  test-1.14:
-    image: golang:1.14
+  test-1.12:
+    image: golang:1.12
     commands:
       - go mod download
+      - go test ./... -v
+      - go test -bench ./...
+  test-1.11:
+    image: golang:1.11
+    commands:
+      - go mod download
+      - go test ./... -v
+      - go test -bench ./...
+  move-into-gopath:
+    image: golang:1.8
+    commands:
+      - mkdir -p /go/src/github.com/gissleh/
+      - mv /project/irc /go/src/github.com/gissleh/
+      - cd /go/src/github.com/gissleh/irc/
+  test-1.10:
+    image: golang:1.10
+    commands:
+      - go test ./... -v
+      - go test -bench ./...
+  test-1.9:
+    image: golang:1.9
+    commands:
+      - go test ./... -v
+      - go test -bench ./...
+  test-1.8:
+    image: golang:1.8
+    commands:
       - go test ./... -v
       - go test -bench ./...
