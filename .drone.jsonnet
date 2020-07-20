@@ -1,6 +1,6 @@
 local Pipeline(version, mod) = {
   kind: "pipeline",
-  name: "test-" + version,
+  name: version,
   workspace: if mod then "/project/irc" else "/go/src/github.com/gissleh/irc",
   steps: [
     {
