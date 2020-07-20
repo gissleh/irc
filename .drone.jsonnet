@@ -20,7 +20,7 @@ local Pipeline(version, mod) = {
   Pipeline("1.13", true),
   Pipeline("1.12", true),
   Pipeline("1.11", true),
-  Pipeline("1.11", false),
-  Pipeline("1.11", false),
-  Pipeline("1.11", false),
+  Pipeline("1.10", false),
+  Pipeline("1.9", false),
+  Pipeline("1.8", false),
 ]
