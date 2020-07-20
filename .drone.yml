@@ -36,19 +36,21 @@ pipeline:
     commands:
       - mkdir -p /go/src/github.com/gissleh/
       - mv /project/irc /go/src/github.com/gissleh/
-      - cd /go/src/github.com/gissleh/irc/
   test-1.10:
     image: golang:1.10
     commands:
+      - cd /go/src/github.com/gissleh/irc/
       - go test ./... -v
       - go test -bench ./...
   test-1.9:
     image: golang:1.9
     commands:
+      - cd /go/src/github.com/gissleh/irc/
       - go test ./... -v
       - go test -bench ./...
   test-1.8:
     image: golang:1.8
     commands:
+      - cd /go/src/github.com/gissleh/irc/
       - go test ./... -v
       - go test -bench ./...
