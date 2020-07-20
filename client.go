@@ -221,7 +221,7 @@ func (client *Client) Connect(addr string, ssl bool) (err error) {
 	client.quit = false
 	client.mutex.Unlock()
 
-	_ = client.EmitSync(context.Background(), NewEvent("client", "connecting"))
+	client.EmitNonBlocking(NewEvent("client", "connecting"))
 
 	if ssl {
 		conn, err = tls.Dial("tcp", addr, &tls.Config{
@@ -237,7 +237,7 @@ func (client *Client) Connect(addr string, ssl bool) (err error) {
 		}
 	}
 
-	client.Emit(NewEvent("client", "connect"))
+	client.EmitNonBlocking(NewEvent("client", "connect"))
 
 	go func() {
 		reader := bufio.NewReader(conn)
@@ -246,16 +246,18 @@ func (client *Client) Connect(addr string, ssl bool) (err error) {
 		for {
 			line, err := reader.ReadString('\n')
 			if err != nil {
+				client.EmitNonBlocking(NewErrorEvent("read", "Read failed: " + err.Error()))
 				break
 			}
 			line = replacer.Replace(line)
 
 			event, err := ParsePacket(line)
 			if err != nil {
+				client.EmitNonBlocking(NewErrorEvent("parse", "Read failed: " + err.Error()))
 				continue
 			}
 
-			client.Emit(event)
+			client.EmitNonBlocking(event)
 		}
 
 		client.mutex.Lock()
@@ -263,7 +265,7 @@ func (client *Client) Connect(addr string, ssl bool) (err error) {
 		client.ready = false
 		client.mutex.Unlock()
 
-		client.Emit(NewEvent("client", "disconnect"))
+		client.EmitNonBlocking(NewEvent("client", "disconnect"))
 	}()
 
 	client.mutex.Lock()
@@ -297,7 +299,8 @@ func (client *Client) Connected() bool {
 }
 
 // Send sends a line to the server. A line-feed will be automatically added if one
-// is not provided.
+// is not provided. If this isn't part of early registration, SendQueued might save
+// you from a potential flood kick.
 func (client *Client) Send(line string) error {
 	client.mutex.RLock()
 	conn := client.conn
@@ -311,16 +314,18 @@ func (client *Client) Send(line string) error {
 		line += "\r\n"
 	}
 
+	_ = conn.SetWriteDeadline(time.Now().Add(time.Second * 30))
 	_, err := conn.Write([]byte(line))
 	if err != nil {
-		client.EmitNonBlocking(NewErrorEvent("network", err.Error()))
+		client.EmitNonBlocking(NewErrorEvent("write", err.Error()))
 		_ = client.Disconnect()
 	}
 
 	return err
 }
 
-// Sendf is Send with a fmt.Sprintf
+// Sendf is Send with a fmt.Sprintf. If this isn't part of early registration,
+// SendQueuedf might save you from a potential flood kick.
 func (client *Client) Sendf(format string, a ...interface{}) error {
 	return client.Send(fmt.Sprintf(format, a...))
 }
