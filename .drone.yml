@@ -37,6 +37,7 @@ pipeline:
       - mkdir -p /go/src/github.com/gissleh/
       - ln -s . /go/src/github.com/gissleh/irc
       - cd /go/src/github.com/gissleh/irc/
+      - ls -lR
       - go test ./... -v
       - go test -bench ./...
   test-1.9:
