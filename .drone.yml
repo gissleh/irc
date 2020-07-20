@@ -3,8 +3,8 @@ kind: pipeline
 type: exec
 
 workspace:
-  base: /go
-  path: ../project/irc/
+  base: /project
+  path: irc/
 
 pipeline:
   test-1.14:
@@ -31,26 +31,27 @@ pipeline:
       - go mod download
       - go test ./... -v
       - go test -bench ./...
-  move-into-gopath:
-    image: golang:1.8
-    commands:
-      - mkdir -p /go/src/github.com/gissleh/
-      - mv /project/irc /go/src/github.com/gissleh/
   test-1.10:
     image: golang:1.10
     commands:
+      - mkdir -p /go/src/github.com/gissleh/
+      - ln -s . /go/src/github.com/gissleh/irc/
       - cd /go/src/github.com/gissleh/irc/
       - go test ./... -v
       - go test -bench ./...
   test-1.9:
     image: golang:1.9
     commands:
+      - mkdir -p /go/src/github.com/gissleh/
+      - ln -s . /go/src/github.com/gissleh/irc/
       - cd /go/src/github.com/gissleh/irc/
       - go test ./... -v
       - go test -bench ./...
   test-1.8:
     image: golang:1.8
     commands:
+      - mkdir -p /go/src/github.com/gissleh/
+      - ln -s . /go/src/github.com/gissleh/irc/
       - cd /go/src/github.com/gissleh/irc/
       - go test ./... -v
       - go test -bench ./...
