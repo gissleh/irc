@@ -13,7 +13,7 @@ pipeline:
       - mkdir -p /go/src/github.com/gissleh/
       - mv /project/irc /go/src/github.com/gissleh/
       - cd /go/src/github.com/gissleh/irc/
-      - go get
+      - go get github.com/stretchr/testify/assert
       - go test ./... -v
       - go test -bench ./...
   test-1.11:
