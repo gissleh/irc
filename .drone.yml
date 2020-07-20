@@ -7,13 +7,28 @@ workspace:
   path: irc/
 
 pipeline:
+  test-1.8:
+    image: golang:1.8
+    commands:
+      - mkdir -p /go/src/github.com/gissleh/
+      - mv /project/irc /go/src/github.com/gissleh/
+      - cd /go/src/github.com/gissleh/irc/
+      - go test ./... -v
+      - go test -bench ./...
+  test-1.9:
+    image: golang:1.9
+    commands:
+      - mkdir -p /go/src/github.com/gissleh/
+      - mv /project/irc /go/src/github.com/gissleh/
+      - cd /go/src/github.com/gissleh/irc/
+      - go test ./... -v
+      - go test -bench ./...
   test-1.10:
     image: golang:1.10
     commands:
       - mkdir -p /go/src/github.com/gissleh/
       - mv /project/irc /go/src/github.com/gissleh/
       - cd /go/src/github.com/gissleh/irc/
-      - go get github.com/stretchr/testify/assert
       - go test ./... -v
       - go test -bench ./...
   test-1.11:
