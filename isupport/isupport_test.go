@@ -2,7 +2,7 @@ package isupport_test
 
 import (
 	"github.com/gissleh/irc/isupport"
-	"github.com/stretchr/testify/assert"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -39,9 +39,9 @@ func TestISupport_ParsePrefixedNick(t *testing.T) {
 		t.Run(row.Full, func(t *testing.T) {
 			nick, modes, prefixes := is.ParsePrefixedNick(row.Full)
 
-			assert.Equal(t, row.Nick, nick)
-			assert.Equal(t, row.Modes, modes)
-			assert.Equal(t, row.Prefixes, prefixes)
+			assertEq(t, row.Nick, nick, "nick")
+			assertEq(t, row.Modes, modes, "modes")
+			assertEq(t, row.Prefixes, prefixes, "prefixes")
 		})
 	}
 }
@@ -58,7 +58,7 @@ func TestISupport_IsChannel(t *testing.T) {
 
 	for channelName, isChannel := range table {
 		t.Run(channelName, func(t *testing.T) {
-			assert.Equal(t, isChannel, is.IsChannel(channelName))
+			assertEq(t, isChannel, is.IsChannel(channelName), "isChannel")
 		})
 	}
 }
@@ -77,7 +77,13 @@ func TestISupport_IsPermissionMode(t *testing.T) {
 
 	for flag, expected := range table {
 		t.Run(string(flag), func(t *testing.T) {
-			assert.Equal(t, expected, is.IsPermissionMode(flag))
+			assertEq(t, expected, is.IsPermissionMode(flag), "")
 		})
+	}
+}
+
+func assertEq(t *testing.T, a interface{}, b interface{}, failMessage string) {
+	if !reflect.DeepEqual(a, b) {
+		t.Errorf("Assert failed: %s (%#+v != %#+v)", failMessage, a, b)
 	}
 }
