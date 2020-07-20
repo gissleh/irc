@@ -35,7 +35,7 @@ pipeline:
     image: golang:1.10
     commands:
       - mkdir -p /go/src/github.com/gissleh/
-      - ln -s . /go/src/github.com/gissleh/irc/
+      - ln -s . /go/src/github.com/gissleh/irc
       - cd /go/src/github.com/gissleh/irc/
       - go test ./... -v
       - go test -bench ./...
@@ -43,7 +43,7 @@ pipeline:
     image: golang:1.9
     commands:
       - mkdir -p /go/src/github.com/gissleh/
-      - ln -s . /go/src/github.com/gissleh/irc/
+      - ln -s . /go/src/github.com/gissleh/irc
       - cd /go/src/github.com/gissleh/irc/
       - go test ./... -v
       - go test -bench ./...
@@ -51,7 +51,7 @@ pipeline:
     image: golang:1.8
     commands:
       - mkdir -p /go/src/github.com/gissleh/
-      - ln -s . /go/src/github.com/gissleh/irc/
+      - ln -s . /go/src/github.com/gissleh/irc
       - cd /go/src/github.com/gissleh/irc/
       - go test ./... -v
       - go test -bench ./...
