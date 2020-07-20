@@ -5,7 +5,7 @@ local Pipeline(version, mod) = {
   steps: [
     {
       name: "test",
-      image: "goland:" + version,
+      image: "golang:" + version,
       commands: [
         if mod then "go mod download" else "go get",
         "go test -v ./...",
