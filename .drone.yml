@@ -3,8 +3,8 @@ kind: pipeline
 type: exec
 
 workspace:
-  base: /project
-  path: irc/
+  base: /go
+  path: ../project/irc/
 
 pipeline:
   test-1.14:
