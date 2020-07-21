@@ -13,11 +13,12 @@ import (
 // Integration test below, brace yourself.
 func TestClient(t *testing.T) {
 	client := irc.New(context.Background(), irc.Config{
-		Nick:         "Test",
-		User:         "Tester",
-		RealName:     "...",
-		Alternatives: []string{"Test2", "Test3", "Test4", "Test768"},
-		SendRate:     1000,
+		Nick:            "Test",
+		User:            "Tester",
+		RealName:        "...",
+		Alternatives:    []string{"Test2", "Test3", "Test4", "Test768"},
+		SendRate:        1000,
+		AutoJoinInvites: true,
 	})
 
 	client.AddHandler(handlers.Input)
@@ -34,6 +35,7 @@ func TestClient(t *testing.T) {
 			{Client: "CAP LS 302"},
 			{Client: "NICK Test"},
 			{Client: "USER Tester 8 * :..."},
+			{Server: ":testserver.example.com NOTICE * :*** Checking your bits..."},
 			{Server: ":testserver.example.com CAP * LS :multi-prefix chghost userhost-in-names vendorname/custom-stuff echo-message =malformed vendorname/advanced-custom-stuff=things,and,items"},
 			{Client: "CAP REQ :multi-prefix chghost userhost-in-names echo-message"},
 			{Server: ":testserver.example.com CAP * ACK :multi-prefix userhost-in-names"},
@@ -323,9 +325,28 @@ func TestClient(t *testing.T) {
 				if client.Channel("#Test2") != nil {
 					return errors.New("#Test2 is still there.")
 				}
-
 				return nil
 			}},
+			{Server: ":testserver.example.com CAP Test768 NEW :invite-notify"},
+			{Client: "CAP REQ :invite-notify"},
+			{Server: ":testserver.example.com CAP Test768 ACK :invite-notify"},
+			{Server: ":ZealousMod!zeal@example.com INVITE Test768 #Test2"},
+			{Client: "JOIN #Test2"},
+			{Server: ":Test768!~Tester@127.0.0.1 JOIN #Test2 *"},
+			{Server: ":testserver.example.com 353 Test768 = #Test2 :Test768!~Tester@127.0.0.1 @+ZealousMod!zeal@example.com"},
+			{Server: ":testserver.example.com 366 Test768 #Test2 :End of /NAMES list."},
+			{Server: "PING :testserver.example.com"}, // Ping/Pong to sync.
+			{Client: "PONG :testserver.example.com"},
+			{Callback: func() error {
+				if client.Channel("#Test2") == nil {
+					return errors.New("#Test2 is not there.")
+				}
+				return nil
+			}},
+			{Server: ":ZealousMod!zeal@example.com INVITE Test768 #Test2"},
+			{Server: ":ZealousMod!zeal@example.com INVITE DoomedUser #test768-do-not-join"},
+			{Server: "PING :testserver.example.com"}, // Ping/Pong to sync.
+			{Client: "PONG :testserver.example.com"},
 		},
 	}
 

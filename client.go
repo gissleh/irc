@@ -29,6 +29,7 @@ var supportedCaps = []string{
 	"userhost-in-names",
 	"account-notify",
 	"away-notify",
+	"invite-notify",
 	"extended-join",
 	"chghost",
 	"account-tag",
@@ -885,7 +886,7 @@ func (client *Client) handleEvent(event *Event) {
 			}
 		}
 
-	// AddHandler ISupport
+	// ISupport
 	case "packet.005":
 		{
 			for _, token := range event.Args[1:] {
@@ -1140,6 +1141,24 @@ func (client *Client) handleEvent(event *Event) {
 	case "packet.366": // End of NAMES
 		{
 			channel := client.Channel(event.Arg(1))
+			if channel != nil {
+				client.handleInTarget(channel, event)
+			}
+		}
+
+	case "packet.invite":
+		{
+			inviteeNick := event.Arg(0)
+			channelName := event.Arg(1)
+			channel := client.Channel(channelName)
+
+			if client.config.AutoJoinInvites && inviteeNick == client.Nick() {
+				if channel == nil {
+					client.Join(channelName)
+				}
+			}
+
+			// Add channel target for rendering invite-notify invitations.
 			if channel != nil {
 				client.handleInTarget(channel, event)
 			}

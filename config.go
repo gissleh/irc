@@ -33,6 +33,9 @@ type Config struct {
 
 	// Languages to request.
 	Languages []string `json:"languages"`
+
+	// Auto-join on invite (bad idea).
+	AutoJoinInvites bool `json:"autoJoinInvites"`
 }
 
 // WithDefaults returns the config with the default values
