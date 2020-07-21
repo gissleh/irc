@@ -36,6 +36,15 @@ type Config struct {
 
 	// Auto-join on invite (bad idea).
 	AutoJoinInvites bool `json:"autoJoinInvites"`
+
+	// Use SASL authorization if supported.
+	SASL *SASLConfig `json:"sasl"`
+}
+
+type SASLConfig struct {
+	AuthenticationIdentity string `json:"authenticationIdentity"`
+	AuthorizationIdentity  string `json:"authorizationIdentity"`
+	Password               string `json:"password"`
 }
 
 // WithDefaults returns the config with the default values

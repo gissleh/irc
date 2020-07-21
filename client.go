@@ -2,9 +2,11 @@ package irc
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -35,6 +37,7 @@ var supportedCaps = []string{
 	"account-tag",
 	"echo-message",
 	"draft/languages",
+	"sasl",
 }
 
 // ErrNoConnection is returned if you try to do something requiring a connection,
@@ -850,30 +853,33 @@ func (client *Client) handleEvent(event *Event) {
 	// Nick rotation
 	case "packet.431", "packet.432", "packet.433", "packet.436":
 		{
-			client.mutex.RLock()
-			hasRegistered := client.nick != ""
-			client.mutex.RUnlock()
+			// Ignore if client is registered
+			if client.Nick() != "" {
+				break
+			}
+			// Ignore if in middle of SASL authentication
+			if event.Verb() == "433" && client.Value("sasl.usingMethod") != nil {
+				break
+			}
 
-			if !hasRegistered {
-				nick := event.Args[1]
+			nick := event.Args[1]
 
-				// "AltN" -> "AltN+1", ...
-				prev := client.config.Nick
-				sent := false
-				for _, alt := range client.config.Alternatives {
-					if nick == prev {
-						_ = client.Sendf("NICK %s", alt)
-						sent = true
-						break
-					}
-
-					prev = alt
+			// "AltN" -> "AltN+1", ...
+			prev := client.config.Nick
+			sent := false
+			for _, alt := range client.config.Alternatives {
+				if nick == prev {
+					_ = client.Sendf("NICK %s", alt)
+					sent = true
+					break
 				}
 
-				if !sent {
-					// "LastAlt" -> "Nick23962"
-					_ = client.Sendf("NICK %s%05d", client.config.Nick, mathRand.Int31n(99999))
-				}
+				prev = alt
+			}
+
+			if !sent {
+				// "LastAlt" -> "Nick23962"
+				_ = client.Sendf("NICK %s%05d", client.config.Nick, mathRand.Int31n(99999))
 			}
 		}
 
@@ -958,6 +964,30 @@ func (client *Client) handleEvent(event *Event) {
 
 						// Special cases for supported tokens
 						switch token {
+						case "sasl":
+							{
+								if client.config.SASL == nil {
+									break
+								}
+
+								mechanisms := strings.Split(client.capData[token], ",")
+								selectedMechanism := ""
+								if len(mechanisms) == 0 || mechanisms[0] == "" {
+									selectedMechanism = "PLAIN"
+								}
+								for _, mechanism := range mechanisms {
+									if mechanism == "PLAIN" && selectedMechanism == "" {
+										selectedMechanism = "PLAIN"
+									}
+								}
+
+								// TODO: Add better mechanisms
+								if selectedMechanism != "" {
+									_ = client.Sendf("AUTHENTICATE %s", selectedMechanism)
+									client.SetValue("sasl.usingMethod", "PLAIN")
+								}
+							}
+
 						case "draft/languages":
 							{
 								if len(client.config.Languages) == 0 {
@@ -1048,6 +1078,46 @@ func (client *Client) handleEvent(event *Event) {
 						client.mutex.Unlock()
 					}
 				}
+			}
+		}
+
+	// SASL
+	case "packet.authenticate":
+		{
+			if event.Arg(0) != "+" {
+				break
+			}
+
+			method, ok := client.Value("sasl.usingMethod").(string)
+			if !ok {
+				break
+			}
+
+			switch method {
+			case "PLAIN":
+				{
+					parts := [][]byte{
+						[]byte(client.config.SASL.AuthenticationIdentity),
+						[]byte(client.config.SASL.AuthorizationIdentity),
+						[]byte(client.config.SASL.Password),
+					}
+					plainString := base64.StdEncoding.EncodeToString(bytes.Join(parts, []byte{0x00}))
+
+					_ = client.Sendf("AUTHENTICATE %s", plainString)
+				}
+			}
+		}
+	case "packet.904": // Auth failed
+		{
+			// Cancel authentication.
+			_ = client.Sendf("AUTHENTICATE *")
+			client.SetValue("sasl.usingMethod", (interface{})(nil))
+		}
+	case "packet.903", "packet.906": // Auth ended
+		{
+			// A bit dirty, but it'll get the nick rotation started again.
+			if client.Nick() == "" {
+				_ = client.Sendf("NICK %s", client.config.Nick)
 			}
 		}
 
