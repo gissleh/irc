@@ -11,6 +11,28 @@ import (
 // the input from the server. It's named after Charybdis IRCd's m_roleplay module.
 func MRoleplay(event *irc.Event, client *irc.Client) {
 	switch event.Name() {
+	case "input.enablerp", "input.disablerp":
+		{
+			sign := "+"
+			if event.Verb() == "disablerp" {
+				sign = "-"
+			}
+
+			chanMode, chanModeOk := client.ISupport().Get("RPCHAN")
+			channel := event.ChannelTarget()
+			if channel != nil && chanModeOk {
+				client.SendQueuedf("MODE %s %s%s", channel.Name(), sign, chanMode)
+			}
+
+			userMode, userModeOk := client.ISupport().Get("RPUSER")
+			query := event.QueryTarget()
+			status := event.StatusTarget()
+			if (query != nil || status != nil) && userModeOk {
+				client.SendQueuedf("MODE %s%s", sign, userMode)
+			}
+		}
+
+	// Parse roleplaying messages, and replace underscored-nick with a render tag.
 	case "packet.privmsg", "ctcp.action":
 		{
 			// Detect m_roleplay
@@ -33,6 +55,8 @@ func MRoleplay(event *irc.Event, client *irc.Client) {
 				event.Text = event.Text[:lastSpace]
 			}
 		}
+
+	// NPC commands
 	case "input.npcc", "input.npcac":
 		{
 			isAction := event.Verb() == "npcac"
@@ -62,7 +86,9 @@ func MRoleplay(event *irc.Event, client *irc.Client) {
 
 			event.PreventDefault()
 		}
-	case "input.scenec":
+
+	// Scene/narrator command
+	case "input.scenec", "input.narratorc":
 		{
 			if event.Text == "" {
 				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /scenec <text...>"))
