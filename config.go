@@ -30,6 +30,9 @@ type Config struct {
 	// The rate (lines per second) to send with Client.SendQueued. Default is 2, which is how
 	// clients that don't excess flood does it.
 	SendRate int `json:"sendRate"`
+
+	// Languages to request.
+	Languages []string `json:"languages"`
 }
 
 // WithDefaults returns the config with the default values

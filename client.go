@@ -33,6 +33,7 @@ var supportedCaps = []string{
 	"chghost",
 	"account-tag",
 	"echo-message",
+	"draft/languages",
 }
 
 // ErrNoConnection is returned if you try to do something requiring a connection,
@@ -158,6 +159,14 @@ func (client *Client) ISupport() *isupport.ISupport {
 	return &client.isupport
 }
 
+// CapData returns if there was any additional CAP data for the given capability.
+func (client *Client) CapData(cap string) string {
+	client.mutex.RLock()
+	defer client.mutex.RUnlock()
+
+	return client.capData[cap]
+}
+
 // CapEnabled returns whether an IRCv3 capability is enabled.
 func (client *Client) CapEnabled(cap string) bool {
 	client.mutex.RLock()
@@ -246,14 +255,14 @@ func (client *Client) Connect(addr string, ssl bool) (err error) {
 		for {
 			line, err := reader.ReadString('\n')
 			if err != nil {
-				client.EmitNonBlocking(NewErrorEvent("read", "Read failed: " + err.Error()))
+				client.EmitNonBlocking(NewErrorEvent("read", "Read failed: "+err.Error()))
 				break
 			}
 			line = replacer.Replace(line)
 
 			event, err := ParsePacket(line)
 			if err != nil {
-				client.EmitNonBlocking(NewErrorEvent("parse", "Read failed: " + err.Error()))
+				client.EmitNonBlocking(NewErrorEvent("parse", "Read failed: "+err.Error()))
 				continue
 			}
 
@@ -911,9 +920,9 @@ func (client *Client) handleEvent(event *Event) {
 						}
 
 						for i := range supportedCaps {
-							if supportedCaps[i] == token {
+							if supportedCaps[i] == key {
 								client.mutex.Lock()
-								client.capsRequested = append(client.capsRequested, token)
+								client.capsRequested = append(client.capsRequested, key)
 								client.mutex.Unlock()
 
 								break
@@ -945,9 +954,52 @@ func (client *Client) handleEvent(event *Event) {
 							client.capEnabled[token] = true
 						}
 						client.mutex.Unlock()
+
+						// Special cases for supported tokens
+						switch token {
+						case "draft/languages":
+							{
+								if len(client.config.Languages) == 0 {
+									break
+								}
+
+								// draft/languages=15,en,~bs,~de,~el,~en-AU,~es,~fi,~fr-FR,~it,~no,~pl,~pt-BR,~ro,~tr-TR,~zh-CN
+								langData := strings.Split(client.capData[token], ",")
+								if len(langData) < 0 {
+									break
+								}
+								maxCount, err := strconv.Atoi(langData[0])
+								if err != nil {
+									break
+								}
+
+								languages := make([]string, 0, maxCount)
+
+							LanguageLoop:
+								for _, lang := range client.config.Languages {
+									for _, lang2 := range langData[1:] {
+										if strings.HasPrefix(lang2, "~") {
+											lang2 = lang2[1:]
+										}
+										if strings.EqualFold(lang, lang2) {
+											languages = append(languages, lang)
+											if len(languages) >= maxCount {
+												break LanguageLoop
+											}
+										}
+									}
+								}
+
+								if len(languages) > 0 {
+									_ = client.Send("LANGUAGE " + strings.Join(languages, " "))
+								}
+							}
+						}
 					}
 
-					_ = client.Send("CAP END")
+					if !client.Ready() {
+						_ = client.Send("CAP END")
+					}
 				}
 			case "NAK":
 				{

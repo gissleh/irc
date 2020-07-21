@@ -19,7 +19,7 @@ var flagAlts = flag.String("alts", "Test2,Test3,Test4,Test5", "Alternative nicks
 var flagUser = flag.String("user", "test", "The client user/ident")
 var flagPass = flag.String("pass", "", "The server password")
 var flagServer = flag.String("server", "localhost:6667", "The server to connect to")
-var flagSsl = flag.Bool("ssl", false, "Wether to connect securely")
+var flagSsl = flag.Bool("ssl", false, "Whether to connect securely")
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -32,6 +32,7 @@ func main() {
 		User:         *flagUser,
 		Alternatives: strings.Split(*flagAlts, ","),
 		Password:     *flagPass,
+		Languages:    []string{"no_NB", "no", "en_US", "en"},
 	})
 
 	client.AddHandler(handlers.Input)
@@ -94,6 +95,6 @@ func main() {
 			break
 		}
 
-		client.EmitInput(string(line[:len(line)-1]), target)
+		client.EmitInput(line[:len(line)-1], target)
 	}
 }
