@@ -20,6 +20,7 @@ var flagUser = flag.String("user", "test", "The client user/ident")
 var flagPass = flag.String("pass", "", "The server password")
 var flagServer = flag.String("server", "localhost:6667", "The server to connect to")
 var flagSsl = flag.Bool("ssl", false, "Whether to connect securely")
+var flagSkipVerify = flag.Bool("skip-verify", false, "Skip SSL verification")
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -28,11 +29,12 @@ func main() {
 	flag.Parse()
 
 	client := irc.New(ctx, irc.Config{
-		Nick:         *flagNick,
-		User:         *flagUser,
-		Alternatives: strings.Split(*flagAlts, ","),
-		Password:     *flagPass,
-		Languages:    []string{"no_NB", "no", "en_US", "en"},
+		Nick:                *flagNick,
+		User:                *flagUser,
+		Alternatives:        strings.Split(*flagAlts, ","),
+		Password:            *flagPass,
+		Languages:           []string{"no_NB", "no", "en_US", "en"},
+		SkipSSLVerification: *flagSkipVerify,
 	})
 
 	client.AddHandler(handlers.Input)
@@ -41,6 +43,7 @@ func main() {
 	err := client.Connect(*flagServer, *flagSsl)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to connect: %s", err)
+		os.Exit(1)
 	}
 
 	var target irc.Target
@@ -50,18 +53,18 @@ func main() {
 
 			if client.ISupport().IsChannel(name) {
 				log.Println("Set target channel", name)
-				target = client.Channel(name)
+				target = client.Target("target", name)
 			} else if len(name) > 0 {
 				log.Println("Set target query", name)
-				target = client.Query(name)
+				target = client.Target("query", name)
 			} else {
 				log.Println("Set target status")
-				target = client.Status()
+				target = client.Target("status", "status")
 			}
 
 			if target == nil {
 				log.Println("Target does not exist, set to status")
-				target = client.Status()
+				target = client.Target("status", "status")
 			}
 
 			event.PreventDefault()
@@ -78,6 +81,18 @@ func main() {
 
 			event.PreventDefault()
 			return
+		}
+
+		if event.Name() == "hook.remove_target" {
+			if target != nil && target.Name() == event.Arg(2) && target.Kind() == event.Arg(1) {
+				log.Println("Unset target ", event.Arg(1), event.Arg(2))
+				target = nil
+			}
+		}
+
+		if event.Name() == "hook.add_target" {
+			log.Println("Set target ", event.Arg(1), event.Arg(2))
+			target = client.Target(event.Arg(1), event.Arg(2))
 		}
 
 		j, err := json.MarshalIndent(event, "", "    ")

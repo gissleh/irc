@@ -122,17 +122,29 @@ func Input(event *irc.Event, client *irc.Client) {
 			event.PreventDefault()
 
 			if event.Text == "" {
-				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /m <text...>"))
+				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /m <modes and args...>"))
 				break
 			}
 
-			channel := event.ChannelTarget()
-			if channel == nil {
-				client.EmitNonBlocking(irc.NewErrorEvent("input", "Target is not a channel"))
-				break
+			if channel := event.ChannelTarget(); channel != nil {
+				client.SendQueuedf("MODE %s %s", channel.Name(), event.Text)
+			} else if status := event.StatusTarget(); status != nil {
+				client.SendQueuedf("MODE %s %s", client.Nick(), event.Text)
+			} else {
+				client.EmitNonBlocking(irc.NewErrorEvent("input", "Target is not a channel or status"))
+			}
+		}
+
+	case "input.quit", "input.disconnect":
+		{
+			event.PreventDefault()
+
+			reason := event.Text
+			if reason == "" {
+				reason = "Client Quit"
 			}
 
-			client.SendQueuedf("MODE %s %s", channel.Name(), event.Text)
+			client.Quit(reason)
 		}
 	}
 }

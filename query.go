@@ -19,8 +19,8 @@ func (query *Query) Name() string {
 	return query.user.Nick
 }
 
-func (query *Query) State() TargetState {
-	return TargetState{
+func (query *Query) State() ClientStateTarget {
+	return ClientStateTarget{
 		Kind:  "query",
 		Name:  query.user.Nick,
 		Users: []list.User{query.user},

@@ -23,8 +23,8 @@ func (channel *Channel) Name() string {
 	return channel.name
 }
 
-func (channel *Channel) State() TargetState {
-	return TargetState{
+func (channel *Channel) State() ClientStateTarget {
+	return ClientStateTarget{
 		Kind:  "channel",
 		Name:  channel.name,
 		Users: channel.userlist.Users(),

@@ -14,8 +14,8 @@ func (status *Status) Name() string {
 	return "Status"
 }
 
-func (status *Status) State() TargetState {
-	return TargetState{
+func (status *Status) State() ClientStateTarget {
+	return ClientStateTarget{
 		Kind:  "status",
 		Name:  "Status",
 		Users: nil,

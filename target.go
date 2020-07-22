@@ -6,5 +6,5 @@ type Target interface {
 	Kind() string
 	Name() string
 	Handle(event *Event, client *Client)
-	State() TargetState
+	State() ClientStateTarget
 }

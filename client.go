@@ -109,9 +109,9 @@ func New(ctx context.Context, config Config) *Client {
 		status:     &Status{},
 	}
 
-	_, _ = client.AddTarget(client.status)
-
 	client.ctx, client.cancel = context.WithCancel(ctx)
+
+	_, _ = client.AddTarget(client.status)
 
 	go client.handleEventLoop()
 	go client.handleSendLoop()
@@ -187,6 +187,14 @@ func (client *Client) Ready() bool {
 	return client.ready
 }
 
+// HasQuit returns true if the client had manually quit.
+func (client *Client) HasQuit() bool {
+	client.mutex.RLock()
+	defer client.mutex.RUnlock()
+
+	return client.ready
+}
+
 func (client *Client) State() ClientState {
 	client.mutex.RLock()
 
@@ -196,9 +204,10 @@ func (client *Client) State() ClientState {
 		Host:      client.host,
 		Connected: client.conn != nil,
 		Ready:     client.ready,
+		Quit:      client.quit,
 		ISupport:  client.isupport.State(),
 		Caps:      make([]string, 0, len(client.capEnabled)),
-		Targets:   make([]TargetState, 0, len(client.targets)),
+		Targets:   make([]ClientStateTarget, 0, len(client.targets)),
 	}
 
 	for key, enabled := range client.capEnabled {
@@ -266,12 +275,20 @@ func (client *Client) Connect(addr string, ssl bool) (err error) {
 
 			event, err := ParsePacket(line)
 			if err != nil {
-				client.EmitNonBlocking(NewErrorEvent("parse", "Read failed: "+err.Error()))
+				client.mutex.RLock()
+				hasQuit := client.quit
+				client.mutex.RUnlock()
+
+				if !hasQuit {
+					client.EmitNonBlocking(NewErrorEvent("parse", "Read failed: "+err.Error()))
+				}
 				continue
 			}
 
 			client.EmitNonBlocking(event)
 		}
+
+		_ = client.conn.Close()
 
 		client.mutex.Lock()
 		client.conn = nil
@@ -461,6 +478,16 @@ func (client *Client) EmitSync(ctx context.Context, event Event) (err error) {
 func (client *Client) EmitInput(line string, target Target) context.Context {
 	event := ParseInput(line)
 
+	client.mutex.RLock()
+	if target != nil && client.targetIds[target] == "" {
+		client.EmitNonBlocking(NewErrorEvent("invalid_target", "Target does not exist."))
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		return ctx
+	}
+	client.mutex.RUnlock()
+
 	if target != nil {
 		client.mutex.RLock()
 		event.targets = append(event.targets, target)
@@ -535,13 +562,23 @@ func (client *Client) Part(channels ...string) {
 	client.SendQueuedf("PART %s", strings.Join(channels, ","))
 }
 
+// Quit sends a quit message and marks the client as having quit, which
+// means HasQuit() will return true.
+func (client *Client) Quit(reason string) {
+	client.mutex.Lock()
+	client.quit = true
+	client.mutex.Unlock()
+
+	client.SendQueuedf("QUIT :%s", reason)
+}
+
 // Target gets a target by kind and name
 func (client *Client) Target(kind string, name string) Target {
 	client.mutex.RLock()
 	defer client.mutex.RUnlock()
 
 	for _, target := range client.targets {
-		if target.Kind() == kind && target.Name() == name {
+		if target.Kind() == kind && strings.EqualFold(name, target.Name()) {
 			return target
 		}
 	}
@@ -631,6 +668,12 @@ func (client *Client) AddTarget(target Target) (id string, err error) {
 	client.targets = append(client.targets, target)
 	client.targetIds[target] = id
 
+	event := NewEvent("hook", "add_target")
+	event.Args = []string{client.targetIds[target], target.Kind(), target.Name()}
+	event.targets = []Target{target}
+	event.targetIds[target] = id
+	client.EmitNonBlocking(event)
+
 	return
 }
 
@@ -646,6 +689,10 @@ func (client *Client) RemoveTarget(target Target) (id string, err error) {
 	for i := range client.targets {
 		if target == client.targets[i] {
 			id = client.targetIds[target]
+
+			event := NewEvent("hook", "remove_target")
+			event.Args = []string{client.targetIds[target], target.Kind(), target.Name()}
+			client.EmitNonBlocking(event)
 
 			client.targets[i] = client.targets[len(client.targets)-1]
 			client.targets = client.targets[:len(client.targets)-1]
@@ -833,6 +880,20 @@ func (client *Client) handleEvent(event *Event) {
 				nick = client.nick
 			}
 			client.mutex.RUnlock()
+
+			// Clear connection-specific data
+			client.mutex.Lock()
+			client.nick = ""
+			client.user = ""
+			client.host = ""
+			client.capsRequested = client.capsRequested[:0]
+			for key := range client.capData {
+				delete(client.capData, key)
+			}
+			for key := range client.capEnabled {
+				delete(client.capEnabled, key)
+			}
+			client.mutex.Unlock()
 
 			// Start registration.
 			_ = client.Sendf("NICK %s", nick)

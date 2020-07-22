@@ -199,6 +199,10 @@ func (isupport *ISupport) Prefixes(modes string) string {
 
 // IsChannel returns whether the target name is a channel.
 func (isupport *ISupport) IsChannel(targetName string) bool {
+	if len(targetName) < 1 {
+		return false
+	}
+
 	isupport.lock.RLock()
 	defer isupport.lock.RUnlock()
 
