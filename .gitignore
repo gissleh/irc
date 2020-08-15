@@ -1,2 +1,6 @@
 /.idea
 /.vscode
+/cmd/ircrepl/ircrepl
+/cmd/ircrepl/ircrepl.exe
+/ircrepl
+/ircrepl.exe
