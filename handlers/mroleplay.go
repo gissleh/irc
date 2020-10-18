@@ -18,12 +18,19 @@ func MRoleplay(event *irc.Event, client *irc.Client) {
 				sign = "-"
 			}
 
+			// If the target is a channel, use RPCHAN or, if not stated, N.
 			chanMode, chanModeOk := client.ISupport().Get("RPCHAN")
 			channel := event.ChannelTarget()
-			if channel != nil && chanModeOk {
-				client.SendQueuedf("MODE %s %s%s", channel.Name(), sign, chanMode)
+			if channel != nil {
+				if chanModeOk {
+					client.SendQueuedf("MODE %s %s%s", channel.Name(), sign, chanMode)
+				} else {
+					client.SendQueuedf("MODE %s %sN", channel.Name(), sign)
+				}
 			}
 
+			// Otherwise enable it on yourself, but only if RPUSER is set as that is not supported.
+			// by servers without this ISupport tag.
 			userMode, userModeOk := client.ISupport().Get("RPUSER")
 			query := event.QueryTarget()
 			status := event.StatusTarget()
@@ -49,9 +56,10 @@ func MRoleplay(event *irc.Event, client *irc.Client) {
 				break
 			}
 
+			// Some servers use this.
 			lastSpace := strings.LastIndex(event.Text, " ")
-			lastParanthesis := strings.LastIndex(event.Text, "(")
-			if lastParanthesis != -1 && lastSpace != -1 && lastParanthesis == lastSpace+1 {
+			lastParentheses := strings.LastIndex(event.Text, "(")
+			if lastParentheses != -1 && lastSpace != -1 && lastParentheses == lastSpace+1 {
 				event.Text = event.Text[:lastSpace]
 			}
 		}
