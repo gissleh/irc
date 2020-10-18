@@ -9,7 +9,9 @@ import (
 	"github.com/gissleh/irc/handlers"
 	"log"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/gissleh/irc"
 )
@@ -95,6 +97,10 @@ func main() {
 			target = client.Target(event.Arg(1), event.Arg(2))
 		}
 
+		if event.Name() == "client.disconnect" {
+			os.Exit(0)
+		}
+
 		j, err := json.MarshalIndent(event, "", "    ")
 		if err != nil {
 			return
@@ -102,6 +108,15 @@ func main() {
 
 		fmt.Println(string(j))
 	})
+
+	go func() {
+		exitSignal := make(chan os.Signal)
+		signal.Notify(exitSignal, os.Interrupt, os.Kill, syscall.SIGTERM)
+
+		<-exitSignal
+
+		client.Quit("Goodnight.")
+	}()
 
 	reader := bufio.NewReader(os.Stdin)
 	for {

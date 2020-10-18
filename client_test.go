@@ -355,7 +355,7 @@ func TestClient(t *testing.T) {
 		t.Fatal("Listen:", err)
 	}
 
-	if err := client.Disconnect(); err != irc.ErrNoConnection {
+	if err := client.Disconnect(false); err != irc.ErrNoConnection {
 		t.Errorf("It should fail to disconnect, got: %s", err)
 	}
 

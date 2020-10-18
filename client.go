@@ -187,12 +187,13 @@ func (client *Client) Ready() bool {
 	return client.ready
 }
 
-// HasQuit returns true if the client had manually quit.
+// HasQuit returns true if the client had manually quit. It should be checked before
+// performing any reconnection logic.
 func (client *Client) HasQuit() bool {
 	client.mutex.RLock()
 	defer client.mutex.RUnlock()
 
-	return client.ready
+	return client.quit
 }
 
 func (client *Client) State() ClientState {
@@ -234,7 +235,7 @@ func (client *Client) Connect(addr string, ssl bool) (err error) {
 	var conn net.Conn
 
 	if client.Connected() {
-		_ = client.Disconnect()
+		_ = client.Disconnect(false)
 	}
 
 	client.isupport.Reset()
@@ -306,16 +307,20 @@ func (client *Client) Connect(addr string, ssl bool) (err error) {
 }
 
 // Disconnect disconnects from the server. It will either return the
-// close error, or ErrNoConnection if there is no connection
-func (client *Client) Disconnect() error {
+// close error, or ErrNoConnection if there is no connection. If
+// markAsQuit is specified, HasQuit will return true until the next
+// connections.
+func (client *Client) Disconnect(markAsQuit bool) error {
 	client.mutex.Lock()
 	defer client.mutex.Unlock()
+
+	if markAsQuit {
+		client.quit = true
+	}
 
 	if client.conn == nil {
 		return ErrNoConnection
 	}
-
-	client.quit = true
 
 	return client.conn.Close()
 }
@@ -348,7 +353,7 @@ func (client *Client) Send(line string) error {
 	_, err := conn.Write([]byte(line))
 	if err != nil {
 		client.EmitNonBlocking(NewErrorEvent("write", err.Error()))
-		_ = client.Disconnect()
+		_ = client.Disconnect(false)
 	}
 
 	return err
@@ -521,9 +526,12 @@ func (client *Client) SetValue(key string, value interface{}) {
 // Destroy destroys the client, which will lead to a disconnect. Cancelling the
 // parent context will do the same.
 func (client *Client) Destroy() {
-	_ = client.Disconnect()
+	_ = client.Disconnect(false)
 	client.cancel()
 	close(client.sends)
+
+	client.Emit(NewEvent("client", "destroy"))
+
 	close(client.events)
 }
 
@@ -781,14 +789,7 @@ end:
 
 	ticker.Stop()
 
-	_ = client.Disconnect()
-
-	event := NewEvent("client", "destroy")
-	event.ctx, event.cancel = context.WithCancel(client.ctx)
-
-	client.handleEvent(&event)
-
-	event.cancel()
+	_ = client.Disconnect(false)
 }
 
 func (client *Client) handleSendLoop() {
