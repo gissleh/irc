@@ -13,13 +13,14 @@ type Event struct {
 	verb string
 	name string
 
-	Time time.Time
-	Nick string
-	User string
-	Host string
-	Args []string
-	Text string
-	Tags map[string]string
+	Time       time.Time
+	Nick       string
+	User       string
+	Host       string
+	Args       []string
+	Text       string
+	Tags       map[string]string
+	RenderTags map[string]string
 
 	ctx              context.Context
 	cancel           context.CancelFunc
@@ -28,8 +29,6 @@ type Event struct {
 
 	targets   []Target
 	targetIds map[Target]string
-
-	RenderTags map[string]string
 }
 
 // NewEvent makes a new event with Kind, Verb, Time set and Args and Tags initialized.
@@ -198,6 +197,30 @@ func (event *Event) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(data)
+}
+
+func (event *Event) Copy() *Event {
+	eventCopy := *event
+	if len(event.Args) > 0 {
+		eventCopy.Args = append(event.Args[:0:0], event.Args...)
+	}
+	if len(event.Tags) > 0 {
+		eventCopy.Tags = make(map[string]string, len(event.Tags))
+		for key, value := range event.Tags {
+			eventCopy.Tags[key] = value
+		}
+	}
+	if len(event.RenderTags) > 0 {
+		eventCopy.RenderTags = make(map[string]string, len(event.RenderTags))
+		for key, value := range event.RenderTags {
+			eventCopy.RenderTags[key] = value
+		}
+	}
+	if len(event.targets) > 0 {
+		eventCopy.targets = append(event.targets[:0:0], event.targets...)
+	}
+
+	return &eventCopy
 }
 
 type eventJSONData struct {
