@@ -175,6 +175,15 @@ func (event *Event) StatusTarget() *Status {
 	return target.(*Status)
 }
 
+func (event *Event) TargetIDs() []string {
+	ids := make([]string, len(event.targets))
+	for _, value := range event.targetIds {
+		ids = append(ids, value)
+	}
+
+	return ids
+}
+
 // MarshalJSON makes a JSON object from the event.
 func (event *Event) MarshalJSON() ([]byte, error) {
 	data := eventJSONData{
