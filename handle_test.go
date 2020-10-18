@@ -43,8 +43,10 @@ func BenchmarkHandle(b *testing.B) {
 	event := irc.NewEvent("test", eventName)
 
 	wg := sync.WaitGroup{}
-	client.AddHandler(func(event2 *irc.Event, client *irc.Client) {
-		wg.Done()
+	client.AddHandler(func(event2 *irc.Event, _ *irc.Client) {
+		if event2.Kind() != "hook" {
+			wg.Done()
+		}
 	})
 
 	b.Run("Emit", func(b *testing.B) {
