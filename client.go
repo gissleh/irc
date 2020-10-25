@@ -98,7 +98,7 @@ type Client struct {
 // tear down clients upon quitting.
 func New(ctx context.Context, config Config) *Client {
 	client := &Client{
-		id:         generateClientID(),
+		id:         generateClientID("C"),
 		values:     make(map[string]interface{}),
 		events:     make(chan *Event, 64),
 		sends:      make(chan string, 64),
@@ -672,7 +672,7 @@ func (client *Client) AddTarget(target Target) (id string, err error) {
 		}
 	}
 
-	id = generateClientID()
+	id = generateClientID("T")
 	client.targets = append(client.targets, target)
 	client.targetIds[target] = id
 
@@ -1493,22 +1493,16 @@ func (client *Client) handleInTarget(target Target, event *Event) {
 	client.mutex.RUnlock()
 }
 
-func generateClientID() string {
-	bytes := make([]byte, 12)
-	_, err := rand.Read(bytes)
+func generateClientID(prefix string) string {
+	buffer := [12]byte{}
+	_, err := rand.Read(buffer[:])
 
 	// Ugly fallback if crypto rand doesn't work.
 	if err != nil {
-		rng := mathRand.NewSource(time.Now().UnixNano())
-		result := strconv.FormatInt(rng.Int63(), 16)
-		for len(result) < 24 {
-			result += strconv.FormatInt(rng.Int63(), 16)
-		}
-
-		return result[:24]
+		mathRand.Read(buffer[:])
 	}
 
-	binary.BigEndian.PutUint32(bytes[4:], uint32(time.Now().Unix()))
+	binary.BigEndian.PutUint32(buffer[4:], uint32(time.Now().Unix()))
 
-	return hex.EncodeToString(bytes)
+	return prefix + hex.EncodeToString(buffer[:])[1:]
 }
