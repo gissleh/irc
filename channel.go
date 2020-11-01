@@ -8,9 +8,15 @@ import (
 
 // A Channel is a target that manages the userlist
 type Channel struct {
+	id       string
 	name     string
 	userlist *list.List
 	parted   bool
+}
+
+// ID returns a unique ID for the channel target.
+func (channel *Channel) ID() string {
+	return channel.id
 }
 
 // Kind returns "channel"

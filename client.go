@@ -87,9 +87,8 @@ type Client struct {
 	isupport isupport.ISupport
 	values   map[string]interface{}
 
-	status    *Status
-	targets   []Target
-	targetIds map[Target]string
+	status  *Status
+	targets []Target
 
 	handlers []Handler
 }
@@ -105,13 +104,12 @@ func New(ctx context.Context, config Config) *Client {
 		capEnabled: make(map[string]bool),
 		capData:    make(map[string]string),
 		config:     config.WithDefaults(),
-		targetIds:  make(map[Target]string, 16),
-		status:     &Status{},
+		status:     &Status{id: generateClientID("T")},
 	}
 
 	client.ctx, client.cancel = context.WithCancel(ctx)
 
-	_, _ = client.AddTarget(client.status)
+	_ = client.AddTarget(client.status)
 
 	go client.handleEventLoop()
 	go client.handleSendLoop()
@@ -220,7 +218,7 @@ func (client *Client) State() ClientState {
 
 	for _, target := range client.targets {
 		tstate := target.State()
-		tstate.ID = client.targetIds[target]
+		tstate.ID = target.ID()
 
 		state.Targets = append(state.Targets, tstate)
 	}
@@ -484,7 +482,7 @@ func (client *Client) EmitInput(line string, target Target) context.Context {
 	event := ParseInput(line)
 
 	client.mutex.RLock()
-	if target != nil && client.targetIds[target] == "" {
+	if target != nil && client.TargetByID(target.ID()) == nil {
 		client.EmitNonBlocking(NewErrorEvent("invalid_target", "Target does not exist."))
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -496,12 +494,10 @@ func (client *Client) EmitInput(line string, target Target) context.Context {
 	if target != nil {
 		client.mutex.RLock()
 		event.targets = append(event.targets, target)
-		event.targetIds[target] = client.targetIds[target]
 		client.mutex.RUnlock()
 	} else {
 		client.mutex.RLock()
 		event.targets = append(event.targets, client.status)
-		event.targetIds[client.status] = client.targetIds[client.status]
 		client.mutex.RUnlock()
 	}
 
@@ -594,6 +590,20 @@ func (client *Client) Target(kind string, name string) Target {
 	return nil
 }
 
+// TargetByID gets a target by kind and name
+func (client *Client) TargetByID(id string) Target {
+	client.mutex.RLock()
+	defer client.mutex.RUnlock()
+
+	for _, target := range client.targets {
+		if target.ID() == id {
+			return target
+		}
+	}
+
+	return nil
+}
+
 // Targets gets all targets of the given kinds.
 func (client *Client) Targets(kinds ...string) []Target {
 	if len(kinds) == 0 {
@@ -658,7 +668,7 @@ func (client *Client) Query(name string) *Query {
 }
 
 // AddTarget adds a target to the client, generating a unique ID for it.
-func (client *Client) AddTarget(target Target) (id string, err error) {
+func (client *Client) AddTarget(target Target) (err error) {
 	client.mutex.Lock()
 	defer client.mutex.Unlock()
 
@@ -672,14 +682,11 @@ func (client *Client) AddTarget(target Target) (id string, err error) {
 		}
 	}
 
-	id = generateClientID("T")
 	client.targets = append(client.targets, target)
-	client.targetIds[target] = id
 
 	event := NewEvent("hook", "add_target")
-	event.Args = []string{client.targetIds[target], target.Kind(), target.Name()}
+	event.Args = []string{target.ID(), target.Kind(), target.Name()}
 	event.targets = []Target{target}
-	event.targetIds[target] = id
 	client.EmitNonBlocking(event)
 
 	return
@@ -696,15 +703,14 @@ func (client *Client) RemoveTarget(target Target) (id string, err error) {
 
 	for i := range client.targets {
 		if target == client.targets[i] {
-			id = client.targetIds[target]
+			id = target.ID()
 
 			event := NewEvent("hook", "remove_target")
-			event.Args = []string{client.targetIds[target], target.Kind(), target.Name()}
+			event.Args = []string{target.ID(), target.Kind(), target.Name()}
 			client.EmitNonBlocking(event)
 
 			client.targets[i] = client.targets[len(client.targets)-1]
 			client.targets = client.targets[:len(client.targets)-1]
-			delete(client.targetIds, target)
 
 			// Ensure the channel has been parted
 			if channel, ok := target.(*Channel); ok && !channel.parted {
@@ -1218,8 +1224,12 @@ func (client *Client) handleEvent(event *Event) {
 			var channel *Channel
 
 			if event.Nick == client.nick {
-				channel = &Channel{name: event.Arg(0), userlist: list.New(&client.isupport)}
-				_, _ = client.AddTarget(channel)
+				channel = &Channel{
+					id:       generateClientID("T"),
+					name:     event.Arg(0),
+					userlist: list.New(&client.isupport),
+				}
+				_ = client.AddTarget(channel)
 			} else {
 				channel = client.Channel(event.Arg(0))
 			}
@@ -1317,14 +1327,20 @@ func (client *Client) handleEvent(event *Event) {
 			if targetName == client.nick {
 				target := client.Target("query", targetName)
 				if target == nil {
-					query := &Query{user: list.User{
-						Nick: event.Nick,
-						User: event.User,
-						Host: event.Host,
-					}}
+					query := &Query{
+						id: client.id,
+						user: list.User{
+							Nick: event.Nick,
+							User: event.User,
+							Host: event.Host,
+						},
+					}
+					if accountTag, ok := event.Tags["account"]; ok {
+						query.user.Account = accountTag
+					}
 
-					id, _ := client.AddTarget(query)
-					event.RenderTags["spawned"] = id
+					_ = client.AddTarget(query)
+					event.RenderTags["spawned"] = query.id
 
 					target = query
 				}
@@ -1406,7 +1422,6 @@ func (client *Client) handleEvent(event *Event) {
 					channels = append(channels, channel.Name())
 
 					rejoinEvent.targets = append(rejoinEvent.targets, target)
-					rejoinEvent.targetIds[target] = client.targetIds[target]
 				}
 			}
 			client.mutex.RUnlock()
@@ -1452,7 +1467,6 @@ func (client *Client) handleInTargets(nick string, event *Event) {
 				target.Handle(event, client)
 
 				event.targets = append(event.targets, target)
-				event.targetIds[target] = client.targetIds[target]
 			}
 		case *Query:
 			{
@@ -1460,7 +1474,6 @@ func (client *Client) handleInTargets(nick string, event *Event) {
 					target.Handle(event, client)
 
 					event.targets = append(event.targets, target)
-					event.targetIds[target] = client.targetIds[target]
 				}
 			}
 		case *Status:
@@ -1469,7 +1482,6 @@ func (client *Client) handleInTargets(nick string, event *Event) {
 					target.Handle(event, client)
 
 					event.targets = append(event.targets, target)
-					event.targetIds[target] = client.targetIds[target]
 				}
 			}
 		}
@@ -1488,7 +1500,6 @@ func (client *Client) handleInTarget(target Target, event *Event) {
 	target.Handle(event, client)
 
 	event.targets = append(event.targets, target)
-	event.targetIds[target] = client.targetIds[target]
 
 	client.mutex.RUnlock()
 }

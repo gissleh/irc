@@ -6,7 +6,13 @@ import (
 
 // A Query is a target for direct messages to and from a specific nick.
 type Query struct {
+	id   string
 	user list.User
+}
+
+// ID returns a unique ID for the channel target.
+func (query *Query) ID() string {
+	return query.id
 }
 
 // Kind returns "channel"

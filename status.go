@@ -2,6 +2,12 @@ package irc
 
 // A Status contains
 type Status struct {
+	id string
+}
+
+// ID returns a unique ID for the status target.
+func (status *Status) ID() string {
+	return status.id
 }
 
 // Kind returns "status"

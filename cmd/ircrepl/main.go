@@ -44,7 +44,7 @@ func main() {
 
 	err := client.Connect(*flagServer, *flagSsl)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to connect: %s", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Failed to connect: %s", err)
 		os.Exit(1)
 	}
 

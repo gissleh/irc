@@ -27,8 +27,7 @@ type Event struct {
 	preventedDefault bool
 	hidden           bool
 
-	targets   []Target
-	targetIds map[Target]string
+	targets []Target
 }
 
 // NewEvent makes a new event with Kind, Verb, Time set and Args and Tags initialized.
@@ -41,8 +40,6 @@ func NewEvent(kind, verb string) Event {
 		Time: time.Now(),
 		Args: make([]string, 0, 4),
 		Tags: make(map[string]string),
-
-		targetIds: make(map[Target]string),
 
 		RenderTags: make(map[string]string),
 	}
@@ -92,7 +89,7 @@ func (event *Event) Context() context.Context {
 // the current event handler returns.
 //
 // A use case for this is to prevent the default input handler from firing
-// on an already prcoessed input event.
+// on an already processed input event.
 func (event *Event) PreventDefault() {
 	event.preventedDefault = true
 }
@@ -177,8 +174,8 @@ func (event *Event) StatusTarget() *Status {
 
 func (event *Event) TargetIDs() []string {
 	ids := make([]string, len(event.targets))
-	for _, value := range event.targetIds {
-		ids = append(ids, value)
+	for _, target := range event.targets {
+		ids = append(ids, target.ID())
 	}
 
 	return ids
@@ -202,7 +199,7 @@ func (event *Event) MarshalJSON() ([]byte, error) {
 
 	data.Targets = make([]string, 0, len(event.targets))
 	for _, target := range event.targets {
-		data.Targets = append(data.Targets, event.targetIds[target])
+		data.Targets = append(data.Targets, target.ID())
 	}
 
 	return json.Marshal(data)
