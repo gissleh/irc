@@ -99,7 +99,7 @@ func MRoleplay(event *irc.Event, client *irc.Client) {
 	case "input.scenec", "input.narratorc":
 		{
 			if event.Text == "" {
-				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /scenec <text...>"))
+				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /"+event.Verb()+" <text...>"))
 				break
 			}
 

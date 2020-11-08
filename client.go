@@ -60,6 +60,9 @@ var ErrTargetNotFound = errors.New("irc: target not found")
 // status target
 var ErrTargetIsStatus = errors.New("irc: cannot remove status target")
 
+// ErrDestroyed is returned by Client.Connect if you try to connect a destroyed client.
+var ErrDestroyed = errors.New("irc: client destroyed")
+
 // A Client is an IRC client. You need to use New to construct it
 type Client struct {
 	id     string
@@ -113,6 +116,8 @@ func New(ctx context.Context, config Config) *Client {
 
 	go client.handleEventLoop()
 	go client.handleSendLoop()
+
+	client.EmitNonBlocking(NewEvent("client", "create"))
 
 	return client
 }
@@ -249,13 +254,24 @@ func (client *Client) Connect(addr string, ssl bool) (err error) {
 			InsecureSkipVerify: client.config.SkipSSLVerification,
 		})
 		if err != nil {
+			if !client.Destroyed() {
+				client.EmitNonBlocking(NewErrorEvent("connect", "Connect failed: "+err.Error()))
+			}
 			return err
 		}
 	} else {
 		conn, err = net.Dial("tcp", addr)
 		if err != nil {
+			if !client.Destroyed() {
+				client.EmitNonBlocking(NewErrorEvent("connect", "Connect failed: "+err.Error()))
+			}
 			return err
 		}
+	}
+
+	if client.Destroyed() {
+		_ = conn.Close()
+		return ErrDestroyed
 	}
 
 	client.EmitNonBlocking(NewEvent("client", "connect"))
@@ -435,6 +451,11 @@ func (client *Client) Describef(targetName string, format string, a ...interface
 // wait for the event, or the client's destruction.
 func (client *Client) Emit(event Event) context.Context {
 	event.ctx, event.cancel = context.WithCancel(client.ctx)
+	if client.Destroyed() {
+		event.cancel()
+		return event.ctx
+	}
+
 	client.events <- &event
 
 	return event.ctx
@@ -445,6 +466,10 @@ func (client *Client) Emit(event Event) context.Context {
 // returned context is for.
 func (client *Client) EmitNonBlocking(event Event) context.Context {
 	event.ctx, event.cancel = context.WithCancel(client.ctx)
+	if client.Destroyed() {
+		event.cancel()
+		return event.ctx
+	}
 
 	select {
 	case client.events <- &event:
@@ -1374,7 +1399,7 @@ func (client *Client) handleEvent(event *Event) {
 					client.handleInTarget(channel, event)
 				}
 			} else {
-				// Try to target by mentioned channel name
+				// Try to target by mentioned channel name.
 				for _, token := range strings.Fields(event.Text) {
 					if client.isupport.IsChannel(token) {
 						channel := client.Channel(token)
