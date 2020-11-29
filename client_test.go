@@ -37,6 +37,7 @@ func TestClient(t *testing.T) {
 			{Client: "USER Tester 8 * :..."},
 			{Server: ":testserver.example.com NOTICE * :*** Checking your bits..."},
 			{Server: ":testserver.example.com CAP * LS :multi-prefix chghost userhost-in-names vendorname/custom-stuff echo-message =malformed vendorname/advanced-custom-stuff=things,and,items"},
+			{Server: ":testserver.example.com 433 * Test :Nick is not available"},
 			{Client: "CAP REQ :multi-prefix chghost userhost-in-names echo-message"},
 			{Server: ":testserver.example.com CAP * ACK :multi-prefix userhost-in-names"},
 			{Client: "CAP END"},
@@ -56,7 +57,6 @@ func TestClient(t *testing.T) {
 
 				return nil
 			}},
-			{Server: ":testserver.example.com 433 * Test :Nick is not available"},
 			{Client: "NICK Test2"},
 			{Server: ":testserver.example.com 433 * Test2 :Nick is not available"},
 			{Client: "NICK Test3"},

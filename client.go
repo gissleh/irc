@@ -850,6 +850,8 @@ func (client *Client) handleSendLoop() {
 
 // handleEvent is always first and gets to break a few rules.
 func (client *Client) handleEvent(event *Event) {
+	sentCapEnd := false
+
 	// IRCv3 `server-time`
 	if timeTag, ok := event.Tags["time"]; ok {
 		serverTime, err := time.Parse(time.RFC3339Nano, timeTag)
@@ -946,33 +948,36 @@ func (client *Client) handleEvent(event *Event) {
 	// Nick rotation
 	case "packet.431", "packet.432", "packet.433", "packet.436":
 		{
+			lockNickChange, _ := client.Value("internal.lockNickChange").(bool)
+
 			// Ignore if client is registered
 			if client.Nick() != "" {
 				break
 			}
-			// Ignore if in middle of SASL authentication
-			if event.Verb() == "433" && client.Value("sasl.usingMethod") != nil {
-				break
-			}
 
 			nick := event.Args[1]
+			newNick := ""
 
 			// "AltN" -> "AltN+1", ...
 			prev := client.config.Nick
-			sent := false
 			for _, alt := range client.config.Alternatives {
 				if nick == prev {
-					_ = client.Sendf("NICK %s", alt)
-					sent = true
+					newNick = alt
 					break
 				}
 
 				prev = alt
 			}
 
-			if !sent {
+			if newNick == "" {
 				// "LastAlt" -> "Nick23962"
-				_ = client.Sendf("NICK %s%05d", client.config.Nick, mathRand.Int31n(99999))
+				newNick = fmt.Sprintf("%s%05d", client.config.Nick, mathRand.Int31n(99999))
+			}
+
+			if lockNickChange {
+				client.SetValue("internal.primedNickChange", newNick)
+			} else {
+				_ = client.Sendf("NICK %s", newNick)
 			}
 		}
 
@@ -1008,6 +1013,8 @@ func (client *Client) handleEvent(event *Event) {
 			switch capCommand {
 			case "LS":
 				{
+					client.SetValue("internal.lockNickChange", true)
+
 					for _, token := range capTokens {
 						split := strings.SplitN(token, "=", 2)
 						key := split[0]
@@ -1042,6 +1049,7 @@ func (client *Client) handleEvent(event *Event) {
 
 							_ = client.Send("CAP REQ :" + requestedCaps)
 						} else {
+							sentCapEnd = true
 							_ = client.Send("CAP END")
 						}
 					}
@@ -1122,6 +1130,7 @@ func (client *Client) handleEvent(event *Event) {
 					}
 
 					if !client.Ready() {
+						sentCapEnd = true
 						_ = client.Send("CAP END")
 					}
 				}
@@ -1461,6 +1470,14 @@ func (client *Client) handleEvent(event *Event) {
 			client.mutex.Unlock()
 
 			client.EmitNonBlocking(NewEvent("hook", "ready"))
+		}
+	}
+
+	if sentCapEnd {
+		client.SetValue("internal.lockNickChange", false)
+
+		if primedNick, _ := client.Value("internal.primedNickChange").(string); primedNick != "" {
+			_ = client.Sendf("NICK %s", primedNick)
 		}
 	}
 
