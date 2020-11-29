@@ -244,6 +244,30 @@ func TestClient(t *testing.T) {
 			{Client: "INVALIDCOMMAND stuff and things"},
 			{Server: ":testserver.example.com 421 Test768 INVALIDCOMMAND :Unknown command"},
 			{Callback: func() error {
+				client.Say("SevenAsterisks", "hi!")
+				return nil
+			}},
+			{Client: "PRIVMSG SevenAsterisks :hi!"},
+			{Server: ":Test768!~Tester@127.0.0.1 PRIVMSG SevenAsterisks :hi!"},
+			{Callback: func() error {
+				event := logger.Last("packet", "PRIVMSG")
+				if event == nil {
+					return errors.New("did not find last query message")
+				}
+				if event.QueryTarget() == nil {
+					return errors.New("event lacks query target")
+				}
+				if event.QueryTarget().Name() != "SevenAsterisks" {
+					return errors.New("incorrect query target")
+				}
+
+				return nil
+			}},
+			{Callback: func() error {
+				client.EmitInput("/invalidcommand stuff and things", nil)
+				return nil
+			}},
+			{Callback: func() error {
 				channel := client.Channel("#Test")
 				if channel == nil {
 					return errors.New("Channel #Test not found")

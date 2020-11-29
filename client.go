@@ -1361,8 +1361,9 @@ func (client *Client) handleEvent(event *Event) {
 			// Target the message
 			target := Target(client.status)
 			targetName := event.Arg(0)
+
 			if targetName == client.nick {
-				queryTarget := client.Target("query", targetName)
+				queryTarget := client.Target("query", event.Nick)
 				if queryTarget == nil {
 					query := &Query{
 						id: client.id,
