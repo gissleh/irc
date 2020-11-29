@@ -37,6 +37,9 @@ type Config struct {
 	// Auto-join on invite (bad idea).
 	AutoJoinInvites bool `json:"autoJoinInvites"`
 
+	// Whether to use the server time tag to overwrite event time.
+	UseServerTime bool `json:"useServerTime"`
+
 	// Use SASL authorization if supported.
 	SASL *SASLConfig `json:"sasl"`
 }

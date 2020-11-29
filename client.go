@@ -852,11 +852,14 @@ func (client *Client) handleSendLoop() {
 func (client *Client) handleEvent(event *Event) {
 	sentCapEnd := false
 
-	// IRCv3 `server-time`
-	if timeTag, ok := event.Tags["time"]; ok {
-		serverTime, err := time.Parse(time.RFC3339Nano, timeTag)
-		if err == nil && serverTime.Year() > 2000 {
-			event.Time = serverTime
+	// Only use IRCv3 `server-time` to overwrite when requested. Frontends/dependents can still
+	// get this information.
+	if client.config.UseServerTime {
+		if timeTag, ok := event.Tags["time"]; ok {
+			serverTime, err := time.Parse(time.RFC3339Nano, timeTag)
+			if err == nil && serverTime.Year() > 2000 {
+				event.Time = serverTime
+			}
 		}
 	}
 
