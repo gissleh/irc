@@ -21,8 +21,12 @@ func TestClient(t *testing.T) {
 		AutoJoinInvites: true,
 	})
 
+	logger := irctest.EventLog{}
+
 	client.AddHandler(handlers.Input)
 	client.AddHandler(handlers.MRoleplay)
+	client.AddHandler(handlers.CTCP)
+	client.AddHandler(logger.Handler)
 
 	t.Logf("Client.ID = %#+v", client.ID())
 	if client.ID() == "" {
@@ -188,6 +192,14 @@ func TestClient(t *testing.T) {
 					return errors.New("Hunter2 should have changed the host: " + userHunter2.Host)
 				}
 
+				event := logger.Last("packet", "PRIVMSG")
+				if event == nil {
+					return errors.New("did not find last channel message")
+				}
+				if event.ChannelTarget() == nil {
+					return errors.New("event lacks channel target")
+				}
+
 				return nil
 			}},
 			{Server: ":Hunter2!~test2@172.17.37.1 PRIVMSG Test768 :Hello, World"},
@@ -197,6 +209,14 @@ func TestClient(t *testing.T) {
 				query := client.Query("Hunter2")
 				if query == nil {
 					return errors.New("Did not find query")
+				}
+
+				event := logger.Last("packet", "PRIVMSG")
+				if event == nil {
+					return errors.New("did not find last query message")
+				}
+				if event.QueryTarget() == nil {
+					return errors.New("event lacks query target")
 				}
 
 				return nil

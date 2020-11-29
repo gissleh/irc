@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	mathRand "math/rand"
 	"net"
 	"sort"
@@ -1362,8 +1363,8 @@ func (client *Client) handleEvent(event *Event) {
 			target := Target(client.status)
 			targetName := event.Arg(0)
 			if targetName == client.nick {
-				target := client.Target("query", targetName)
-				if target == nil {
+				queryTarget := client.Target("query", targetName)
+				if queryTarget == nil {
 					query := &Query{
 						id: client.id,
 						user: list.User{
@@ -1379,8 +1380,10 @@ func (client *Client) handleEvent(event *Event) {
 					_ = client.AddTarget(query)
 					event.RenderTags["spawned"] = query.id
 
-					target = query
+					queryTarget = query
 				}
+
+				target = queryTarget
 			} else {
 				channel := client.Channel(targetName)
 				if channel != nil {
@@ -1389,11 +1392,10 @@ func (client *Client) handleEvent(event *Event) {
 					}
 
 					target = channel
-				} else {
-					target = client.status
 				}
 			}
 
+			log.Println(targetName == client.nick)
 			client.handleInTarget(target, event)
 		}
 
@@ -1540,13 +1542,8 @@ func (client *Client) handleInTarget(target Target, event *Event) {
 		return
 	}
 
-	client.mutex.RLock()
-
-	target.Handle(event, client)
-
 	event.targets = append(event.targets, target)
-
-	client.mutex.RUnlock()
+	target.Handle(event, client)
 }
 
 func generateClientID(prefix string) string {
