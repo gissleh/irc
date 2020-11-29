@@ -40,11 +40,11 @@ func BenchmarkHandle(b *testing.B) {
 	eventName := strconv.FormatInt(rng.Int63(), 36) + strconv.FormatInt(rng.Int63(), 36) + strconv.FormatInt(rng.Int63(), 36)
 
 	client := irc.New(context.Background(), irc.Config{})
-	event := irc.NewEvent("test", eventName)
+	event := irc.NewEvent("test_event", eventName)
 
 	wg := sync.WaitGroup{}
 	client.AddHandler(func(event2 *irc.Event, _ *irc.Client) {
-		if event2.Kind() != "hook" {
+		if event2.Kind() == "test_event" {
 			wg.Done()
 		}
 	})
