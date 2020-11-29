@@ -11,7 +11,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log"
 	mathRand "math/rand"
 	"net"
 	"sort"
@@ -1395,7 +1394,6 @@ func (client *Client) handleEvent(event *Event) {
 				}
 			}
 
-			log.Println(targetName == client.nick)
 			client.handleInTarget(target, event)
 		}
 
