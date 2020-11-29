@@ -173,7 +173,7 @@ func (event *Event) StatusTarget() *Status {
 }
 
 func (event *Event) TargetIDs() []string {
-	ids := make([]string, len(event.targets))
+	ids := make([]string, 0, len(event.targets))
 	for _, target := range event.targets {
 		ids = append(ids, target.ID())
 	}
