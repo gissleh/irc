@@ -249,8 +249,11 @@ func TestClient(t *testing.T) {
 			}},
 			{Client: "PRIVMSG SevenAsterisks :hi!"},
 			{Server: ":Test768!~Tester@127.0.0.1 PRIVMSG SevenAsterisks :hi!"},
+			{Server: "PING :testserver.example.com"}, // Ping/Pong to sync.
+			{Client: "PONG :testserver.example.com"},
 			{Callback: func() error {
 				event := logger.Last("packet", "PRIVMSG")
+
 				if event == nil {
 					return errors.New("did not find last query message")
 				}
@@ -259,6 +262,12 @@ func TestClient(t *testing.T) {
 				}
 				if event.QueryTarget().Name() != "SevenAsterisks" {
 					return errors.New("incorrect query target")
+				}
+				if event.Nick != client.Nick() {
+					return errors.New("incorrect client nick")
+				}
+				if event.Arg(0) != "SevenAsterisks" {
+					return errors.New("incorrect client nick")
 				}
 
 				return nil
