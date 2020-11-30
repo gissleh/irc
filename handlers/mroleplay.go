@@ -70,13 +70,13 @@ func MRoleplay(event *irc.Event, client *irc.Client) {
 			isAction := event.Verb() == "npcac"
 			nick, text := ircutil.ParseArgAndText(event.Text)
 			if nick == "" || text == "" {
-				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /"+event.Verb()+" <nick> <text...>"))
+				client.EmitNonBlocking(irc.NewErrorEventTarget(event.Target(), "input", "Usage: /"+event.Verb()+" <nick> <text...>", "usage_"+event.Verb(), nil))
 				break
 			}
 
 			channel := event.ChannelTarget()
 			if channel == nil {
-				client.EmitNonBlocking(irc.NewErrorEvent("input", "Target is not a channel"))
+				client.EmitNonBlocking(irc.NewErrorEventTarget(event.Target(), "input", "Target is not a channel", "target_not_channel", nil))
 				break
 			}
 
@@ -99,13 +99,13 @@ func MRoleplay(event *irc.Event, client *irc.Client) {
 	case "input.scenec", "input.narratorc":
 		{
 			if event.Text == "" {
-				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /"+event.Verb()+" <text...>"))
+				client.EmitNonBlocking(irc.NewErrorEventTarget(event.Target(), "input", "Usage: /"+event.Verb()+" <text...>", "usage_"+event.Verb(), nil))
 				break
 			}
 
 			channel := event.ChannelTarget()
 			if channel == nil {
-				client.EmitNonBlocking(irc.NewErrorEvent("input", "Target is not a channel"))
+				client.EmitNonBlocking(irc.NewErrorEventTarget(event.Target(), "input", "Target is not a channel", "target_not_channel", nil))
 				break
 			}
 

@@ -255,7 +255,7 @@ func (client *Client) Connect(addr string, ssl bool) (err error) {
 		})
 		if err != nil {
 			if !client.Destroyed() {
-				client.EmitNonBlocking(NewErrorEvent("connect", "Connect failed: "+err.Error()))
+				client.EmitNonBlocking(NewErrorEvent("connect", "TLS connect failed: "+err.Error(), "connect_failed_tls", err))
 			}
 			return err
 		}
@@ -263,7 +263,7 @@ func (client *Client) Connect(addr string, ssl bool) (err error) {
 		conn, err = net.Dial("tcp", addr)
 		if err != nil {
 			if !client.Destroyed() {
-				client.EmitNonBlocking(NewErrorEvent("connect", "Connect failed: "+err.Error()))
+				client.EmitNonBlocking(NewErrorEvent("connect", "Connect failed: "+err.Error(), "connect_failed", err))
 			}
 			return err
 		}
@@ -283,7 +283,7 @@ func (client *Client) Connect(addr string, ssl bool) (err error) {
 		for {
 			line, err := reader.ReadString('\n')
 			if err != nil {
-				client.EmitNonBlocking(NewErrorEvent("read", "Read failed: "+err.Error()))
+				client.EmitNonBlocking(NewErrorEvent("read", "Read failed: "+err.Error(), "read_failed", err))
 				break
 			}
 			line = replacer.Replace(line)
@@ -295,7 +295,7 @@ func (client *Client) Connect(addr string, ssl bool) (err error) {
 				client.mutex.RUnlock()
 
 				if !hasQuit {
-					client.EmitNonBlocking(NewErrorEvent("parse", "Read failed: "+err.Error()))
+					client.EmitNonBlocking(NewErrorEvent("parse", "Parse failed: "+err.Error(), "parse_failed", err))
 				}
 				continue
 			}
@@ -366,7 +366,7 @@ func (client *Client) Send(line string) error {
 	_ = conn.SetWriteDeadline(time.Now().Add(time.Second * 30))
 	_, err := conn.Write([]byte(line))
 	if err != nil {
-		client.EmitNonBlocking(NewErrorEvent("write", err.Error()))
+		client.EmitNonBlocking(NewErrorEvent("write", "Write failed:"+err.Error(), "connect_failed", err))
 		_ = client.Disconnect(false)
 	}
 
@@ -508,7 +508,7 @@ func (client *Client) EmitInput(line string, target Target) context.Context {
 
 	client.mutex.RLock()
 	if target != nil && client.TargetByID(target.ID()) == nil {
-		client.EmitNonBlocking(NewErrorEvent("invalid_target", "Target does not exist."))
+		client.EmitNonBlocking(NewErrorEvent("target", "Target does not exist.", "target_do_not_exist", nil))
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()

@@ -17,7 +17,7 @@ func Input(event *irc.Event, client *irc.Client) {
 
 			targetName, text := ircutil.ParseArgAndText(event.Text)
 			if targetName == "" || text == "" {
-				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /msg <target> <text...>"))
+				client.EmitNonBlocking(irc.NewErrorEventTarget(event.Target(), "input", "Usage: /msg <target> <text...>", "usage_msg", nil))
 				break
 			}
 
@@ -34,13 +34,13 @@ func Input(event *irc.Event, client *irc.Client) {
 			event.PreventDefault()
 
 			if event.Text == "" {
-				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /text <text...>"))
+				client.EmitNonBlocking(irc.NewErrorEventTarget(event.Target(), "input", "Usage: /text <text...>", "usage_text", nil))
 				break
 			}
 
 			target := event.Target("query", "channel")
 			if target == nil {
-				client.EmitNonBlocking(irc.NewErrorEvent("input", "Target is not a channel or query"))
+				client.EmitNonBlocking(irc.NewErrorEventTarget(event.Target(), "input", "Target is not a channel or query", "target_not_channel_or_query", nil))
 				break
 			}
 
@@ -57,13 +57,13 @@ func Input(event *irc.Event, client *irc.Client) {
 			event.PreventDefault()
 
 			if event.Text == "" {
-				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /me <text...>"))
+				client.EmitNonBlocking(irc.NewErrorEventTarget(event.Target(), "input", "Usage: /me <text...>", "usage_me", nil))
 				break
 			}
 
 			target := event.Target("query", "channel")
 			if target == nil {
-				client.EmitNonBlocking(irc.NewErrorEvent("input", "Target is not a channel or query"))
+				client.EmitNonBlocking(irc.NewErrorEventTarget(event.Target(), "input", "Target is not a channel or query", "target_not_channel_or_query", nil))
 				break
 			}
 
@@ -93,7 +93,7 @@ func Input(event *irc.Event, client *irc.Client) {
 
 			targetName, text := ircutil.ParseArgAndText(event.Text)
 			if targetName == "" || text == "" {
-				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /describe <target> <text...>"))
+				client.EmitNonBlocking(irc.NewErrorEventTarget(event.Target(), "input", "Usage: /describe <target> <text...>", "usage_describe", nil))
 				break
 			}
 
@@ -122,7 +122,7 @@ func Input(event *irc.Event, client *irc.Client) {
 			event.PreventDefault()
 
 			if event.Text == "" {
-				client.EmitNonBlocking(irc.NewErrorEvent("input", "Usage: /m <modes and args...>"))
+				client.EmitNonBlocking(irc.NewErrorEventTarget(event.Target(), "input", "Usage: /m <modes and args...>", "usage_m", nil))
 				break
 			}
 
@@ -131,7 +131,7 @@ func Input(event *irc.Event, client *irc.Client) {
 			} else if status := event.StatusTarget(); status != nil {
 				client.SendQueuedf("MODE %s %s", client.Nick(), event.Text)
 			} else {
-				client.EmitNonBlocking(irc.NewErrorEvent("input", "Target is not a channel or status"))
+				client.EmitNonBlocking(irc.NewErrorEventTarget(event.Target(), "input", "Target is not a channel or status", "channel_not_channel_or_status", nil))
 			}
 		}
 

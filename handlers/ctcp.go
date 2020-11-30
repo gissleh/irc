@@ -52,7 +52,7 @@ func CTCP(event *irc.Event, client *irc.Client) {
 			args := strings.SplitN(event.Text, " ", 2)
 			targetName := args[0]
 			if targetName == "" {
-				client.EmitNonBlocking(irc.NewErrorEvent("ctcp.pingarg", "/ping needs an argument"))
+				client.EmitNonBlocking(irc.NewErrorEventTarget(event.Target(), "input", "/ping needs an argument", "usage_ping", nil))
 				break
 			}
 
